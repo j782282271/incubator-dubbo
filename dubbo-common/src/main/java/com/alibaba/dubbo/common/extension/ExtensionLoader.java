@@ -30,15 +30,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
@@ -68,27 +60,38 @@ public class ExtensionLoader<T> {
 
     private static final Pattern NAME_SEPARATOR = Pattern.compile("\\s*[,]+\\s*");
 
+    //type-->ExtensionLoader
     private static final ConcurrentMap<Class<?>, ExtensionLoader<?>> EXTENSION_LOADERS = new ConcurrentHashMap<Class<?>, ExtensionLoader<?>>();
-
+    //实现类class-->最近的一个实现类实例
     private static final ConcurrentMap<Class<?>, Object> EXTENSION_INSTANCES = new ConcurrentHashMap<Class<?>, Object>();
 
-    // ==============================
+    // 注意 Adaptive 与Activate的区别
 
+    //父接口class
     private final Class<?> type;
 
     private final ExtensionFactory objectFactory;
 
+    //子类class到名的映射与文件中正好相反
     private final ConcurrentMap<Class<?>, String> cachedNames = new ConcurrentHashMap<Class<?>, String>();
 
+    //对应文件中的key=class全名，其中key（name）可以用逗号分割，可以多个名字对一个class子类实现
     private final Holder<Map<String, Class<?>>> cachedClasses = new Holder<Map<String, Class<?>>>();
 
+    //带有Activate注解的子类的Activate集合，key为子类的key（name）
     private final Map<String, Activate> cachedActivates = new ConcurrentHashMap<String, Activate>();
+    //使用过的instance
     private final ConcurrentMap<String, Holder<Object>> cachedInstances = new ConcurrentHashMap<String, Holder<Object>>();
+    //最后一个带有Adaptive的实现的类的实例缓存在这里
     private final Holder<Object> cachedAdaptiveInstance = new Holder<Object>();
+    //最后一个带有Adaptive的实现的类的class缓存在这里
     private volatile Class<?> cachedAdaptiveClass = null;
+    //接口注解SPI 的value值
     private String cachedDefaultName;
+    //加载cachedAdaptiveClass时候产生的异常，在调用getAdaptiveExtension方法时抛出
     private volatile Throwable createAdaptiveInstanceError;
 
+    //属于wrapper的实现类
     private Set<Class<?>> cachedWrapperClasses;
 
     private Map<String, IllegalStateException> exceptions = new ConcurrentHashMap<String, IllegalStateException>();
@@ -176,24 +179,35 @@ public class ExtensionLoader<T> {
      * Get activate extensions.
      *
      * @param url    url
-     * @param values extension point names
-     * @param group  group
+     * @param values extension point names，用于过滤文件中的key(name)，values有的name是必须要结果的，不受其他参数过滤，注意它与Activate的value无关，Activate的value与url参数有关
+     * @param group  group  用于过滤Activate注解中的group
      * @return extension list which are activated
      * @see com.alibaba.dubbo.common.extension.Activate
+     *
+     * 1.根据loader.getActivateExtension中的group和搜索到此类型的实例进行比较，如果group能匹配到，就是我们选择的，也就是在此条件下需要激活的。
+     * 2.@Activate中的value是参数是第二层过滤参数（第一层是通过group），在group校验通过的前提下，如果URL中的参数（k）与值（v）中的参数名同@Activate中的value值一致或者包含，那么才会被选中。相当于加入了value后，条件更为苛刻点，需要URL中有此参数并且，参数必须有值。
+     * 3.@Activate的order参数对于同一个类型的多个扩展来说，order值越小，优先级越高。
      */
     public List<T> getActivateExtension(URL url, String[] values, String group) {
         List<T> exts = new ArrayList<T>();
+//        将传递过来的values包装成List类型的names
         List<String> names = values == null ? new ArrayList<String>(0) : Arrays.asList(values);
+//        包装好的数据中不包含"-default"
         if (!names.contains(Constants.REMOVE_VALUE_PREFIX + Constants.DEFAULT_KEY)) {
+//            获取这个类型的数据的所有扩展信息
             getExtensionClasses();
             for (Map.Entry<String, Activate> entry : cachedActivates.entrySet()) {
+//                获取扩展的名称,文件中的key
                 String name = entry.getKey();
                 Activate activate = entry.getValue();
-                if (isMatchGroup(group, activate.group())) {
+//                 判断group是否属于范围
+//                 1. 如果activate注解的group没有设定，直接返回true
+//                 2. 如果设定了，需要和传入的额group进行比较，看是否包含其中，如果包含，返回true
+                if (isMatchGroup(group, activate.group())) {//1activate的group与参数group对比
                     T ext = getExtension(name);
-                    if (!names.contains(name)
-                            && !names.contains(Constants.REMOVE_VALUE_PREFIX + name)
-                            && isActive(activate, url)) {
+                    if (!names.contains(name)//names 不包含 遍历此时的name，说名传参的values是要排除掉的names集合，但是name相同的，会在后续加入进来
+                            && !names.contains(Constants.REMOVE_VALUE_PREFIX + name)//names中不包含"-"+name
+                            && isActive(activate, url)) {//2activate.value与url的param对比过滤，通过URL判断这个activate注解是激活的
                         exts.add(ext);
                     }
                 }
@@ -236,6 +250,9 @@ public class ExtensionLoader<T> {
         return false;
     }
 
+    /**
+     * 判断url中的params(key，value)是否包含activate注解中的value
+     * */
     private boolean isActive(Activate activate, URL url) {
         String[] keys = activate.value();
         if (keys.length == 0) {
@@ -432,6 +449,9 @@ public class ExtensionLoader<T> {
         }
     }
 
+    /**
+     * 获取最后一个带有Adaptive注解的实现类，并缓存在cachedAdaptiveInstance中
+     */
     @SuppressWarnings("unchecked")
     public T getAdaptiveExtension() {
         Object instance = cachedAdaptiveInstance.get();
@@ -494,10 +514,13 @@ public class ExtensionLoader<T> {
                 EXTENSION_INSTANCES.putIfAbsent(clazz, clazz.newInstance());
                 instance = (T) EXTENSION_INSTANCES.get(clazz);
             }
+            //注入本instance依赖的其他instance
             injectExtension(instance);
+            //把本instance注入给其他wrapper类（同一接口的其他子类），最终返回其他wrapper类
             Set<Class<?>> wrapperClasses = cachedWrapperClasses;
             if (wrapperClasses != null && !wrapperClasses.isEmpty()) {
                 for (Class<?> wrapperClass : wrapperClasses) {
+                    //instance变为wrapper类，并为wrapper注入依赖
                     instance = injectExtension((T) wrapperClass.getConstructor(type).newInstance(instance));
                 }
             }
@@ -552,6 +575,10 @@ public class ExtensionLoader<T> {
         return clazz;
     }
 
+    /**
+     * 1获取所有文件中的实现类存入cachedClasses（key=文件中）中
+     * 2并记录最后一个带有Adaptive注解的子实现类
+     */
     private Map<String, Class<?>> getExtensionClasses() {
         Map<String, Class<?>> classes = cachedClasses.get();
         if (classes == null) {
@@ -566,6 +593,11 @@ public class ExtensionLoader<T> {
         return classes;
     }
 
+    /**
+     * 加载所有在文件中配置的class到map，并返回map
+     * map中与文件中的key=value对应，value为子类实现类
+     * 并记录最后一个带有Adaptive注解的子实现类
+     */
     // synchronized in getExtensionClasses
     private Map<String, Class<?>> loadExtensionClasses() {
         final SPI defaultAnnotation = type.getAnnotation(SPI.class);
@@ -588,6 +620,11 @@ public class ExtensionLoader<T> {
         return extensionClasses;
     }
 
+    /**
+     * 从目录中读取数据到map中
+     * ky1=a.b.c.XXXClass
+     * ky2=a.b.c.XXXClass
+     */
     private void loadDirectory(Map<String, Class<?>> extensionClasses, String dir) {
         String fileName = dir + type.getName();
         try {
@@ -645,6 +682,13 @@ public class ExtensionLoader<T> {
         }
     }
 
+    /**
+     * 1带有Adaptive的最后一个子类class存入cachedAdaptiveClass属性
+     * 2wrapper子类放入cachedWrapperClasses
+     * 3有name,有Activate注解的放入cachedActivates中
+     * 4有name,class->name存入cachedNames
+     * 5有name,name->class存入extensionClasses这个参数中
+     */
     private void loadClass(Map<String, Class<?>> extensionClasses, java.net.URL resourceURL, Class<?> clazz, String name) throws NoSuchMethodException {
         if (!type.isAssignableFrom(clazz)) {
             throw new IllegalStateException("Error when load extension class(interface: " +
@@ -655,6 +699,7 @@ public class ExtensionLoader<T> {
             if (cachedAdaptiveClass == null) {
                 cachedAdaptiveClass = clazz;
             } else if (!cachedAdaptiveClass.equals(clazz)) {
+//               如果有多个实现再类上都打上了@Adaptive注解，会报错：标准的适配器类只能有一个。
                 throw new IllegalStateException("More than 1 adaptive class found: "
                         + cachedAdaptiveClass.getClass().getName()
                         + ", " + clazz.getClass().getName());
@@ -717,6 +762,9 @@ public class ExtensionLoader<T> {
         return extension.value();
     }
 
+    /**
+     * 获取最后一个带有Adaptive注解的实现类，，并inject
+     */
     @SuppressWarnings("unchecked")
     private T createAdaptiveExtension() {
         try {
@@ -726,11 +774,21 @@ public class ExtensionLoader<T> {
         }
     }
 
+    /**
+     * 获取最后一个带有Adaptive的子类实现
+     */
     private Class<?> getAdaptiveExtensionClass() {
+        //1获取所有文件中的实现类存入cachedClasses（key=文件中）中
+        //并记录唯一一个带有Adaptive注解的子实现类（有多个报错）
         getExtensionClasses();
         if (cachedAdaptiveClass != null) {
+            //说明配置文件中有带有Adaptive注解的子类
             return cachedAdaptiveClass;
         }
+        //没有Adaptive注解的子实现类，用程序拼接创建子类
+        //创建的子类，其实是代理类，其内部使用其他的子类真正的处理请求
+        //通过代码创建的类，可以处理其接收参数中的url信息决定使用哪一个真正的子类去处理请求，
+        // 也可根据接口SPI中指定的name去获取真正的子类，
         return cachedAdaptiveClass = createAdaptiveExtensionClass();
     }
 
@@ -741,10 +799,24 @@ public class ExtensionLoader<T> {
         return compiler.compile(code, classLoader);
     }
 
+    /**
+     *  1. 获取某个SPI接口的adaptive实现类的规则是：
+     *     （1）实现类的类上面有Adaptive注解的，那么这个类就是adaptive类，只能有一个否则会报错在loadclass方法中
+     *     （2）实现类的类上面没有Adaptive注解，但是在方法上有Adaptive注解，则会动态生成adaptive类
+     *  2 .生成的动态类的编译类是：com.alibaba.dubbo.common.compiler.support.AdaptiveCompiler类
+     *  3. 动态类的本质是可以做到一个SPI中的不同的Adaptive方法可以去调不同的SPI实现类去处理。使得程序的灵活性大大提高。这才是整套SPI设计的一个精华之所在
+     *   wiki：https://www.jianshu.com/p/dc616814ce98
+     *   1. 在子类方法上加上@Adaptive注解的类，是最为明确的创建对应类型Adaptive类。所以他优先级最高，有多个则报错,体现在loadClass方法中
+     *   2. 本方法中：@SPI注解中的value是默认值，如果通过URL获取不到关于取哪个类作为Adaptive类的话，就使用这个默认值，当然如果URL中可以获取到，就用URL中的。
+     *   3. 本方法中：可以在方法上增加@Adaptive注解，注解中的value与链接中的参数的key一致，链接中的key对应的value就是spi中的name,获取相应的实现类。
+     *  */
     private String createAdaptiveExtensionClassCode() {
         StringBuilder codeBuilder = new StringBuilder();
+        //获取接口的所有方法
         Method[] methods = type.getMethods();
+        //是否有带有Adaptive注解的方法
         boolean hasAdaptiveAnnotation = false;
+        // 完全没有Adaptive方法，则不需要生成Adaptive类
         for (Method m : methods) {
             if (m.isAnnotationPresent(Adaptive.class)) {
                 hasAdaptiveAnnotation = true;
@@ -755,6 +827,8 @@ public class ExtensionLoader<T> {
         if (!hasAdaptiveAnnotation)
             throw new IllegalStateException("No adaptive method on extension " + type.getName() + ", refuse to create the adaptive class!");
 
+        //动态类的包名就是相应的SPI接口的包名
+        //动态类的类名就  SPI接口名+$Adpative
         codeBuilder.append("package ").append(type.getPackage().getName()).append(";");
         codeBuilder.append("\nimport ").append(ExtensionLoader.class.getName()).append(";");
         codeBuilder.append("\npublic class ").append(type.getSimpleName()).append("$Adaptive").append(" implements ").append(type.getCanonicalName()).append(" {");
@@ -766,6 +840,7 @@ public class ExtensionLoader<T> {
 
             Adaptive adaptiveAnnotation = method.getAnnotation(Adaptive.class);
             StringBuilder code = new StringBuilder(512);
+            //对于SPI方法上不带Adaptive注解的方法，生成的方法代码统统在方法体内抛出UnsupportedOperationException
             if (adaptiveAnnotation == null) {
                 code.append("throw new UnsupportedOperationException(\"method ")
                         .append(method.toString()).append(" of interface ")
@@ -779,6 +854,7 @@ public class ExtensionLoader<T> {
                     }
                 }
                 // found parameter in URL type
+                // 有类型为URL的参数，加上传参url不为空判断
                 if (urlTypeIndex != -1) {
                     // Null Point check
                     String s = String.format("\nif (arg%d == null) throw new IllegalArgumentException(\"url == null\");",
@@ -790,9 +866,11 @@ public class ExtensionLoader<T> {
                 }
                 // did not find parameter in URL type
                 else {
+                    // 参数没有URL类型
                     String attribMethod = null;
 
                     // find URL getter method
+                    //从传参的参数类型class中，找到找到url的getter方法的class
                     LBL_PTS:
                     for (int i = 0; i < pts.length; ++i) {
                         Method[] ms = pts[i].getMethods();
@@ -809,12 +887,14 @@ public class ExtensionLoader<T> {
                             }
                         }
                     }
+                    //既没有url参数，又没有带有url getter方法的参数
                     if (attribMethod == null) {
                         throw new IllegalStateException("fail to create adaptive class for interface " + type.getName()
                                 + ": not found url parameter or url attribute in parameters of method " + method.getName());
                     }
 
                     // Null point check
+                    //url参数不为null判断
                     String s = String.format("\nif (arg%d == null) throw new IllegalArgumentException(\"%s argument == null\");",
                             urlTypeIndex, pts[urlTypeIndex].getName());
                     code.append(s);
@@ -826,6 +906,7 @@ public class ExtensionLoader<T> {
                     code.append(s);
                 }
 
+                //获取接口方法上的Adaptive注解的value值，如果没有就以SPI接口名做为默认的value（length=1），但是会把大写字母前+".",并转小写字母这样进行处理
                 String[] value = adaptiveAnnotation.value();
                 // value is not set, use the value generated from class name as the key
                 if (value.length == 0) {
@@ -844,6 +925,7 @@ public class ExtensionLoader<T> {
                     value = new String[]{sb.toString()};
                 }
 
+                //含有Invocation参数，判断Invocation是否为null
                 boolean hasInvocation = false;
                 for (int i = 0; i < pts.length; ++i) {
                     if (pts[i].getName().equals("com.alibaba.dubbo.rpc.Invocation")) {
@@ -857,19 +939,24 @@ public class ExtensionLoader<T> {
                     }
                 }
 
-                String defaultExtName = cachedDefaultName;
-                String getNameCode = null;
+                //cachedDefaultName就是SPI（类）注解中的value值
+                String defaultExtName = cachedDefaultName;//协议名，如dubbo、http,作为默认协议
+                String getNameCode = null;//代码创建出来的code
                 for (int i = value.length - 1; i >= 0; --i) {
-                    if (i == value.length - 1) {
+                    if (i == value.length - 1) {//倒着数第一个元素
                         if (null != defaultExtName) {
+                            //如果SPI注解提供了默认扩展名（如dubbo http），且方法的Adaptive注解中的value不为"protocol"，为protocol要特殊处理
+                            //value[i]为方法的adptive注解中的value[i]值，如果adptive中指定了value则,从url中获取该value对应值，url中没找到该值，则用SPI类注解中指定的协议
                             if (!"protocol".equals(value[i]))
+                                //方法参数中有com.alibaba.dubbo.rpc.Invocation类型的参数，则方法参数上还应有URL这样的参数 , 并从url上获取看是否有 SPI的name参数，如没有就使用SPI注解的value
                                 if (hasInvocation)
                                     getNameCode = String.format("url.getMethodParameter(methodName, \"%s\", \"%s\")", value[i], defaultExtName);
-                                else
+                                else//意思类似上面，只是获取value的方法不同
                                     getNameCode = String.format("url.getParameter(\"%s\", \"%s\")", value[i], defaultExtName);
                             else
+                                //如果方法的adptive注解中的value[i]值为protocol，则特殊处理，调用url.getProtocol()，如果为null则使用SPI中的默认
                                 getNameCode = String.format("( url.getProtocol() == null ? \"%s\" : url.getProtocol() )", defaultExtName);
-                        } else {
+                        } else {//如果SPI注解上没提供默认扩展名,则无默认扩展名
                             if (!"protocol".equals(value[i]))
                                 if (hasInvocation)
                                     getNameCode = String.format("url.getMethodParameter(methodName, \"%s\", \"%s\")", value[i], defaultExtName);
@@ -878,7 +965,7 @@ public class ExtensionLoader<T> {
                             else
                                 getNameCode = "url.getProtocol()";
                         }
-                    } else {
+                    } else {//倒着数非第一个元素，url参数前面的优先
                         if (!"protocol".equals(value[i]))
                             if (hasInvocation)
                                 getNameCode = String.format("url.getMethodParameter(methodName, \"%s\", \"%s\")", value[i], defaultExtName);
