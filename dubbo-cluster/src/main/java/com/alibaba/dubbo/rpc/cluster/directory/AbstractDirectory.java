@@ -72,10 +72,12 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
             throw new RpcException("Directory already destroyed .url: " + getUrl());
         }
         List<Invoker<T>> invokers = doList(invocation);
+        //用ruoter过滤invokers
         List<Router> localRouters = this.routers; // local reference
         if (localRouters != null && !localRouters.isEmpty()) {
             for (Router router : localRouters) {
                 try {
+                    //router的url为空，或者有runtime这个key,则用router过滤
                     if (router.getUrl() == null || router.getUrl().getParameter(Constants.RUNTIME_KEY, false)) {
                         invokers = router.route(invokers, getConsumerUrl(), invocation);
                     }
@@ -102,6 +104,7 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
         // append url router
         String routerkey = url.getParameter(Constants.ROUTER_KEY);
         if (routerkey != null && routerkey.length() > 0) {
+            //url含有router这个key,则根据本类中存的url，获取router存入routers中
             RouterFactory routerFactory = ExtensionLoader.getExtensionLoader(RouterFactory.class).getExtension(routerkey);
             routers.add(routerFactory.getRouter(url));
         }
