@@ -381,9 +381,11 @@ public class UrlUtils {
     }
 
     public static boolean isMatchGlobPattern(String pattern, String value, URL param) {
+        //如果pattern为$abc,则从url中取出abc的value作为新的pattern
         if (param != null && pattern.startsWith("$")) {
             pattern = param.getRawParameter(pattern.substring(1));
         }
+        //pattern与vlaue对比是否相同
         return isMatchGlobPattern(pattern, value);
     }
 

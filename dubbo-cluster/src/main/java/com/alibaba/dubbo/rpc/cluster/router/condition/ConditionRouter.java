@@ -45,6 +45,8 @@ import java.util.regex.Pattern;
 public class ConditionRouter implements Router, Comparable<Router> {
 
     private static final Logger logger = LoggerFactory.getLogger(ConditionRouter.class);
+    //例如a=val1,val2,val3 b!=val4,val5&d=val1,val8
+    //*代表{0,}　+代表{1,}　?代表{0,1}                       &!=,之一出现>=0次数（可能没出现没出现代表开始）   空格出现>=0次  非&!=,空格出现至少一次
     private static Pattern ROUTE_PATTERN = Pattern.compile("([&!=,]*)\\s*([^&!=,\\s]+)");
     private final URL url;
     private final int priority;
@@ -63,7 +65,9 @@ public class ConditionRouter implements Router, Comparable<Router> {
             }
             rule = rule.replace("consumer.", "").replace("provider.", "");
             int i = rule.indexOf("=>");
+            //whenRule：true=>
             String whenRule = i < 0 ? null : rule.substring(0, i).trim();
+            //rule中不含有=>，或者含有=>，则在其后
             String thenRule = i < 0 ? rule.trim() : rule.substring(i + 2).trim();
             Map<String, MatchPair> when = StringUtils.isBlank(whenRule) || "true".equals(whenRule) ? new HashMap<String, MatchPair>() : parseRule(whenRule);
             Map<String, MatchPair> then = StringUtils.isBlank(thenRule) || "false".equals(thenRule) ? null : parseRule(thenRule);
@@ -85,6 +89,9 @@ public class ConditionRouter implements Router, Comparable<Router> {
         MatchPair pair = null;
         // Multiple values
         Set<String> values = null;
+        //a&b [&!=] dsfssd [&!=] vbdfg
+        //例如& a=val1,val2,val3&a!=val4,val5&b!=val5。遇到,&=! 则停止.
+        //([&!=,]*)\\s*([^&!=,\\s]+)
         final Matcher matcher = ROUTE_PATTERN.matcher(rule);
         while (matcher.find()) { // Try to match one by one
             String separator = matcher.group(1);
@@ -189,6 +196,7 @@ public class ConditionRouter implements Router, Comparable<Router> {
     }
 
     boolean matchWhen(URL url, Invocation invocation) {
+        //用url或者invocation中取出的value,与whenCondition匹配
         return whenCondition == null || whenCondition.isEmpty() || matchCondition(whenCondition, url, null, invocation);
     }
 
@@ -196,22 +204,27 @@ public class ConditionRouter implements Router, Comparable<Router> {
         return !(thenCondition == null || thenCondition.isEmpty()) && matchCondition(thenCondition, url, param, null);
     }
 
+    //用url或者invocation中取出的sampleValue，与param匹配
     private boolean matchCondition(Map<String, MatchPair> condition, URL url, URL param, Invocation invocation) {
         Map<String, String> sample = url.toMap();
         boolean result = false;
+        //都匹配才算匹配
         for (Map.Entry<String, MatchPair> matchPair : condition.entrySet()) {
             String key = matchPair.getKey();
             String sampleValue;
             //get real invoked method name from invocation
             if (invocation != null && (Constants.METHOD_KEY.equals(key) || Constants.METHODS_KEY.equals(key))) {
+                //从invocation中取sampleValue
                 sampleValue = invocation.getMethodName();
             } else {
+                //从url的map中取sampleVallue
                 sampleValue = sample.get(key);
                 if (sampleValue == null) {
                     sampleValue = sample.get(Constants.DEFAULT_KEY_PREFIX + key);
                 }
             }
             if (sampleValue != null) {
+                //
                 if (!matchPair.getValue().isMatch(sampleValue, param)) {
                     return false;
                 } else {
@@ -234,6 +247,7 @@ public class ConditionRouter implements Router, Comparable<Router> {
         final Set<String> mismatches = new HashSet<String>();
 
         private boolean isMatch(String value, URL param) {
+            //mismatches为空，matches中匹配了返回true
             if (!matches.isEmpty() && mismatches.isEmpty()) {
                 for (String match : matches) {
                     if (UrlUtils.isMatchGlobPattern(match, value, param)) {
@@ -242,7 +256,7 @@ public class ConditionRouter implements Router, Comparable<Router> {
                 }
                 return false;
             }
-
+            //matches为空，mismatches中匹配了，返回false
             if (!mismatches.isEmpty() && matches.isEmpty()) {
                 for (String mismatch : mismatches) {
                     if (UrlUtils.isMatchGlobPattern(mismatch, value, param)) {
@@ -252,6 +266,7 @@ public class ConditionRouter implements Router, Comparable<Router> {
                 return true;
             }
 
+            //都不为空，优先匹配mismatches
             if (!matches.isEmpty() && !mismatches.isEmpty()) {
                 //when both mismatches and matches contain the same value, then using mismatches first
                 for (String mismatch : mismatches) {
