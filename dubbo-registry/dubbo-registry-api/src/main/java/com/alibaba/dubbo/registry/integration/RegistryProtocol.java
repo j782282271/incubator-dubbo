@@ -139,19 +139,26 @@ public class RegistryProtocol implements Protocol {
 
         //to judge to delay publish whether or not
         boolean register = registeredProviderUrl.getParameter("register", true);
-
+        //originInvoker.getUrl=>registry://224.5.6.7:1234/com.alibaba.dubbo.registry.RegistryService
+        //registryUrl=>multicast://224.5.6.7:1234/com.alibaba.dubbo.registry.RegistryService
+        //registeredProviderUrl=>dubbo://10.13.1.45:20880/com.alibaba.dubbo.demo.DemoService
         ProviderConsumerRegTable.registerProvider(originInvoker, registryUrl, registeredProviderUrl);
 
         if (register) {
+            //创建节点：/dubbo/com.alibaba.dubbo.demo.DemoService/providers/[dubbo%3A%2F%2F10.13.1.45%3A20880%2Fcom.alibaba.dubbo.demo.DemoService%3Fanyhost%3Dtrue%26application%3Ddemo-provider%26bean.name%3Dcom.alibaba.dubbo.demo.DemoS
+            //ervice%26dubbo%3D2.0.2%26generic%3Dfalse%26interface%3Dcom.alibaba.dubbo.demo.DemoService%26methods%3DsayHello%26pid%3D7364%26side%3Dprovider%26timestamp%3D1547627983821]
+            ///dubbo/com.alibaba.dubbo.demo.DemoService/providers/目录是永久的，其后的节点为临时的
             register(registryUrl, registeredProviderUrl);
             ProviderConsumerRegTable.getProviderWrapper(originInvoker).setReg(true);
         }
 
         // Subscribe the override data
         // FIXME When the provider subscribes, it will affect the scene : a certain JVM exposes the service and call the same service. Because the subscribed is cached key with the name of the service, it causes the subscription information to cover.
+        //overrideSubscribeUrl=>provider://10.13.1.45:20880/com.alibaba.dubbo.demo.DemoService
         final URL overrideSubscribeUrl = getSubscribedOverrideUrl(registeredProviderUrl);
         final OverrideListener overrideSubscribeListener = new OverrideListener(overrideSubscribeUrl, originInvoker);
         overrideListeners.put(overrideSubscribeUrl, overrideSubscribeListener);
+        //监听节点变化，缓存的本地，即使provider也会缓存到本地
         registry.subscribe(overrideSubscribeUrl, overrideSubscribeListener);
         //Ensure that a new exporter instance is returned every time export
         return new DestroyableExporter<T>(exporter, originInvoker, overrideSubscribeUrl, registeredProviderUrl);
