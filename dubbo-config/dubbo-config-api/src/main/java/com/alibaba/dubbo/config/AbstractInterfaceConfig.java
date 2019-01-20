@@ -159,6 +159,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     }
 
     protected List<URL> loadRegistries(boolean provider) {
+        //registries有多个，都会在其上暴露
         checkRegistry();
         List<URL> registryList = new ArrayList<URL>();
         if (registries != null && !registries.isEmpty()) {
@@ -289,6 +290,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
     }
 
     void checkMock(Class<?> interfaceClass) {
+        //仅仅check mock，对mock不做修改
         if (ConfigUtils.isEmpty(mock)) {
             return;
         }

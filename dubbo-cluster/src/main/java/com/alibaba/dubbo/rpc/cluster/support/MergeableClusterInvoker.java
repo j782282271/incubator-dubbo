@@ -63,6 +63,7 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
         List<Invoker<T>> invokers = directory.list(invocation);
 
         String merger = getUrl().getMethodParameter(invocation.getMethodName(), Constants.MERGER_KEY);
+        // 如果方法不需要Merge，退化为只调一个Group
         if (ConfigUtils.isEmpty(merger)) { // If a method doesn't have a merger, only invoke one Group
             for (final Invoker<T> invoker : invokers) {
                 if (invoker.isAvailable()) {
@@ -80,6 +81,7 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
             returnType = null;
         }
 
+        //执行每个invoker，执行结果future放在results中
         Map<String, Future<Result>> results = new HashMap<String, Future<Result>>();
         for (final Invoker<T> invoker : invokers) {
             Future<Result> future = executor.submit(new Callable<Result>() {
@@ -101,8 +103,8 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
             try {
                 Result r = future.get(timeout, TimeUnit.MILLISECONDS);
                 if (r.hasException()) {
-                    log.error("Invoke " + getGroupDescFromServiceKey(entry.getKey()) + 
-                                    " failed: " + r.getException().getMessage(), 
+                    log.error("Invoke " + getGroupDescFromServiceKey(entry.getKey()) +
+                                    " failed: " + r.getException().getMessage(),
                             r.getException());
                 } else {
                     resultList.add(r);
@@ -111,24 +113,31 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
                 throw new RpcException("Failed to invoke service " + entry.getKey() + ": " + e.getMessage(), e);
             }
         }
-
+        //每个invoker的执行结果放在resultList中
         if (resultList.isEmpty()) {
             return new RpcResult((Object) null);
         } else if (resultList.size() == 1) {
             return resultList.iterator().next();
         }
 
+        //不要返回值返回null就行
         if (returnType == void.class) {
             return new RpcResult((Object) null);
         }
 
+//        是否指定合并方法merger.startsWith("."),为什么是否指定方法是这么判断的呢?因为指定合并方法在xml配置中就是要以"."开头,例如
+//          <dubbo:reference interface="com.xxx.MenuService" group="*">
+//            <dubbo:method name="getMenuItems" merger=".addAll" />
+//          </dubbo:service>
         if (merger.startsWith(".")) {
             merger = merger.substring(1);
             Method method;
             try {
+                //merger：merger的方法名
+                //returnType：invoke的返回类型，merger方法需要invoke方法的返回类型，作为参数
                 method = returnType.getMethod(merger, returnType);
             } catch (NoSuchMethodException e) {
-                throw new RpcException("Can not merge result because missing method [ " + merger + " ] in class [ " + 
+                throw new RpcException("Can not merge result because missing method [ " + merger + " ] in class [ " +
                         returnType.getClass().getName() + " ]");
             }
             if (!Modifier.isPublic(method.getModifiers())) {
