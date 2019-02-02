@@ -37,6 +37,7 @@ public class LeastActiveLoadBalance extends AbstractLoadBalance {
     @Override
     protected <T> Invoker<T> doSelect(List<Invoker<T>> invokers, URL url, Invocation invocation) {
         int length = invokers.size(); // Number of invokers
+        //最少活跃，说明处理能力最强
         int leastActive = -1; // The least active value of all invokers
         int leastCount = 0; // The number of invokers having the same least active value (leastActive)
         int[] leastIndexs = new int[length]; // The index of invokers having the same least active value (leastActive)

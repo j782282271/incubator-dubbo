@@ -51,9 +51,11 @@ public class ProtocolListenerWrapper implements Protocol {
 
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
+        //invoker.getUrl().getProtocol()为registry协议，则this.protocol属性为RegistryProtocol类（或其wrapper类）
         if (Constants.REGISTRY_PROTOCOL.equals(invoker.getUrl().getProtocol())) {
             return protocol.export(invoker);
         }
+        //invoker.getUrl().getProtocol()为dubbo/injvm协议，则this.protocol属性为dubbo/injvm类
         return new ListenerExporterWrapper<T>(protocol.export(invoker),
                 Collections.unmodifiableList(ExtensionLoader.getExtensionLoader(ExporterListener.class)
                         .getActivateExtension(invoker.getUrl(), Constants.EXPORTER_LISTENER_KEY)));

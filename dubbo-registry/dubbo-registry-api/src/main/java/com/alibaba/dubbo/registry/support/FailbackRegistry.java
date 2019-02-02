@@ -127,6 +127,9 @@ public abstract class FailbackRegistry extends AbstractRegistry {
         }
     }
 
+    /**
+     * 注册失败的放入失败的list中
+     * */
     @Override
     public void register(URL url) {
         super.register(url);
@@ -263,6 +266,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
             throw new IllegalArgumentException("notify listener == null");
         }
         try {
+            //super.notify
             doNotify(url, listener, urls);
         } catch (Exception t) {
             // Record a failed registration request to a failed list, retry regularly
@@ -280,6 +284,9 @@ public abstract class FailbackRegistry extends AbstractRegistry {
         super.notify(url, listener, urls);
     }
 
+    /**
+     * 将已注册、已订阅的信息，放入失败列表中，定时任务会取出重新注册
+     * */
     @Override
     protected void recover() throws Exception {
         // register

@@ -93,7 +93,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     private transient volatile boolean exported;
 
     private transient volatile boolean unexported;
-
+    //如果intergface是GenericService，则generic=true
     private volatile String generic;
 
     public ServiceConfig() {
@@ -230,6 +230,8 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
         }
         checkDefault();
         if (provider != null) {
+            //provider可以配置application/module/registries等等其他配置，如果其他配置没有
+            //格外的这些配置bean，则使用provider下的这些配置
             if (application == null) {
                 application = provider.getApplication();
             }
@@ -356,6 +358,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
     private void doExportUrls() {
         List<URL> registryURLs = loadRegistries(true);
         for (ProtocolConfig protocolConfig : protocols) {
+            //protocols有多个，每个协议上都会暴露
             doExportUrlsFor1Protocol(protocolConfig, registryURLs);
         }
     }
@@ -484,7 +487,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
 
             // export to local if the config is not remote (export to remote only when config is remote)
             if (!Constants.SCOPE_REMOTE.toString().equalsIgnoreCase(scope)) {
-                exportLocal(url);
+                exportLocal(url);//本地暴露，之前加的host信息都是本地的localhost
             }
             // export to remote if the config is not local (export to local only when config is local)
             if (!Constants.SCOPE_LOCAL.toString().equalsIgnoreCase(scope)) {

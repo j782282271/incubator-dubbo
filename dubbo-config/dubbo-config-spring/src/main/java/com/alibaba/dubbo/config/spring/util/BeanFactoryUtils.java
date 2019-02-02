@@ -34,7 +34,7 @@ import java.lang.reflect.Method;
 public class BeanFactoryUtils {
     public static boolean addApplicationListener(ApplicationContext applicationContext, ApplicationListener listener) {
         try {
-            // backward compatibility to spring 2.0.1
+            // backward compatibility to spring 2.0.1，通过反射添加listener，有些spring版本可能没有此方法
             Method method = applicationContext.getClass().getMethod("addApplicationListener", ApplicationListener.class);
             method.invoke(applicationContext, listener);
             return true;

@@ -450,7 +450,7 @@ public class ExtensionLoader<T> {
     }
 
     /**
-     * 获取最后一个带有Adaptive注解的实现类，并缓存在cachedAdaptiveInstance中
+     * 获取带有Adaptive注解的实现类，并缓存在cachedAdaptiveInstance中
      */
     @SuppressWarnings("unchecked")
     public T getAdaptiveExtension() {
@@ -801,12 +801,12 @@ public class ExtensionLoader<T> {
 
     /**
      *  1. 获取某个SPI接口的adaptive实现类的规则是：
-     *     （1）实现类的类上面有Adaptive注解的，那么这个类就是adaptive类，只能有一个否则会报错在loadclass方法中
+     *     （1）实现类的类上面有Adaptive注解的，那么这个类就是adaptive类，只能有一个否则会报错在loadclass方法中报错
      *     （2）实现类的类上面没有Adaptive注解，但是在方法上有Adaptive注解，则会动态生成adaptive类
      *  2 .生成的动态类的编译类是：com.alibaba.dubbo.common.compiler.support.AdaptiveCompiler类
-     *  3. 动态类的本质是可以做到一个SPI中的不同的Adaptive方法可以去调不同的SPI实现类去处理。使得程序的灵活性大大提高。这才是整套SPI设计的一个精华之所在
+     *  3. 动态类的本质是可以做到一个SPI中的不同的Adaptive参数可以去调不同的SPI实现类去处理。使得程序的灵活性大大提高。这才是整套SPI设计的一个精华之所在
      *   wiki：https://www.jianshu.com/p/dc616814ce98
-     *   1. 在子类方法上加上@Adaptive注解的类，是最为明确的创建对应类型Adaptive类。所以他优先级最高，有多个则报错,体现在loadClass方法中
+     *   1. 在子类方法上加上@Adaptive注解的类，是最为明确的创建对应类型Adaptive类。所以他优先级最高，有多个则报错，体现在loadClass方法中
      *   2. 本方法中：@SPI注解中的value是默认值，如果通过URL获取不到关于取哪个类作为Adaptive类的话，就使用这个默认值，当然如果URL中可以获取到，就用URL中的。
      *   3. 本方法中：可以在方法上增加@Adaptive注解，注解中的value与链接中的参数的key一致，链接中的key对应的value就是spi中的name,获取相应的实现类。
      *  */
@@ -814,9 +814,9 @@ public class ExtensionLoader<T> {
         StringBuilder codeBuilder = new StringBuilder();
         //获取接口的所有方法
         Method[] methods = type.getMethods();
-        //是否有带有Adaptive注解的方法
+        //type接口中，是否有带有Adaptive注解的方法
         boolean hasAdaptiveAnnotation = false;
-        // 完全没有Adaptive方法，则不需要生成Adaptive类
+        //type接口中，完全没有Adaptive方法，则不需要生成Adaptive类，会抛出异常
         for (Method m : methods) {
             if (m.isAnnotationPresent(Adaptive.class)) {
                 hasAdaptiveAnnotation = true;

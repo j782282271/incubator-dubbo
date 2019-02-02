@@ -63,6 +63,7 @@ public abstract class AbstractConfig implements Serializable {
     private static final String[] SUFFIXES = new String[]{"Config", "Bean"};
 
     static {
+        //默认配置，有些配置项目没有配置，则从系统环境变量（配置文件）中取，环境变量中还没有，则利用以下map转换ke与，再次获取
         legacyProperties.put("dubbo.protocol.name", "dubbo.service.protocol");
         legacyProperties.put("dubbo.protocol.host", "dubbo.service.server.host");
         legacyProperties.put("dubbo.protocol.port", "dubbo.service.server.port");
@@ -103,6 +104,7 @@ public abstract class AbstractConfig implements Serializable {
                     String property = StringUtils.camelToSplitName(name.substring(3, 4).toLowerCase() + name.substring(4), ".");
 
                     String value = null;
+                    //从系统变量中取默认配置
                     if (config.getId() != null && config.getId().length() > 0) {
                         String pn = prefix + config.getId() + "." + property;
                         value = System.getProperty(pn);
@@ -110,6 +112,7 @@ public abstract class AbstractConfig implements Serializable {
                             logger.info("Use System Property " + pn + " to config dubbo");
                         }
                     }
+                    //从系统变量中取默认配置
                     if (value == null || value.length() == 0) {
                         String pn = prefix + property;
                         value = System.getProperty(pn);
@@ -174,6 +177,8 @@ public abstract class AbstractConfig implements Serializable {
 
     @SuppressWarnings("unchecked")
     protected static void appendParameters(Map<String, String> parameters, Object config, String prefix) {
+        //把config中的getter方法的属性名作为key（如果有Parameter注解，则取其中的key作为key），key加前缀prefix，属性值作为value存入parameters
+        //如果parameters中已存在key，则values用逗号分割
         if (config == null) {
             return;
         }
@@ -192,7 +197,7 @@ public abstract class AbstractConfig implements Serializable {
                     }
                     int i = name.startsWith("get") ? 3 : 2;
                     String prop = StringUtils.camelToSplitName(name.substring(i, i + 1).toLowerCase() + name.substring(i + 1), ".");
-                    String key;
+                    String key;//key即Parameter中的key如果没有Parameter注解，则为属性名
                     if (parameter != null && parameter.key().length() > 0) {
                         key = parameter.key();
                     } else {
@@ -243,6 +248,7 @@ public abstract class AbstractConfig implements Serializable {
         appendAttributes(parameters, config, null);
     }
 
+    //功能和appendParameters类似，但是没有逗号分割value功能
     protected static void appendAttributes(Map<Object, Object> parameters, Object config, String prefix) {
         if (config == null) {
             return;
@@ -409,6 +415,8 @@ public abstract class AbstractConfig implements Serializable {
     }
 
     protected void appendAnnotation(Class<?> annotationClass, Object annotation) {
+        //annotation所有带有返回值的方法的方法名（如abc方法），拼上set前缀（如setAbc方法）
+        //执行abc()方法，返回值为a,在执行setAbc(a)方法
         Method[] methods = annotationClass.getMethods();
         for (Method method : methods) {
             if (method.getDeclaringClass() != Object.class

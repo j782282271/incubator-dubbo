@@ -44,6 +44,7 @@ public class SpringExtensionFactory implements ExtensionFactory {
 
     public static void addApplicationContext(ApplicationContext context) {
         contexts.add(context);
+        //添加contextListener、监听ContextClosedEvent事件，关闭protool等资源
         BeanFactoryUtils.addApplicationListener(context, shutdownHookListener);
     }
 
