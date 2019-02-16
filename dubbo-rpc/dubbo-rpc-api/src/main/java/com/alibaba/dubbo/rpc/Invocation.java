@@ -33,7 +33,7 @@ public interface Invocation {
      * @return method name.
      * @serial
      */
-    String getMethodName();
+    String  getMethodName();
 
     /**
      * get parameter types.

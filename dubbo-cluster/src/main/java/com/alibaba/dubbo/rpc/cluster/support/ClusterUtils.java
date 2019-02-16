@@ -63,8 +63,11 @@ public class ClusterUtils {
         }
 
         if (localMap != null && localMap.size() > 0) {
+            //map为provider经过过滤的，localMap为consumer的，用consumer覆盖provider的
             map.putAll(localMap);
         }
+        //remoteMap为provider的原始的参数，将部分信息用provider覆盖回consumer的
+        //合并部分provider、consumer信息
         if (remoteMap != null && remoteMap.size() > 0) {
             // Use version passed from provider side
             String dubbo = remoteMap.get(Constants.DUBBO_VERSION_KEY);
