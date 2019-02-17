@@ -168,6 +168,9 @@ public class ConfigUtils {
         }
     }
 
+    /**
+     * 从配置文件中获取配置，dubbo.properties
+     * */
     public static String getProperty(String key) {
         return getProperty(key, null);
     }

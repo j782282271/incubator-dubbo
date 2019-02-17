@@ -30,11 +30,7 @@ import com.alibaba.dubbo.registry.Registry;
 import com.alibaba.dubbo.registry.RegistryFactory;
 import com.alibaba.dubbo.registry.RegistryService;
 import com.alibaba.dubbo.registry.support.ProviderConsumerRegTable;
-import com.alibaba.dubbo.rpc.Exporter;
-import com.alibaba.dubbo.rpc.Invoker;
-import com.alibaba.dubbo.rpc.Protocol;
-import com.alibaba.dubbo.rpc.ProxyFactory;
-import com.alibaba.dubbo.rpc.RpcException;
+import com.alibaba.dubbo.rpc.*;
 import com.alibaba.dubbo.rpc.cluster.Cluster;
 import com.alibaba.dubbo.rpc.cluster.Configurator;
 import com.alibaba.dubbo.rpc.protocol.InvokerWrapper;
@@ -47,14 +43,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static com.alibaba.dubbo.common.Constants.ACCEPT_FOREIGN_IP;
-import static com.alibaba.dubbo.common.Constants.QOS_ENABLE;
-import static com.alibaba.dubbo.common.Constants.QOS_PORT;
-import static com.alibaba.dubbo.common.Constants.VALIDATION_KEY;
+import static com.alibaba.dubbo.common.Constants.*;
 
 /**
  * RegistryProtocol
- *
  */
 public class RegistryProtocol implements Protocol {
 
@@ -131,6 +123,8 @@ public class RegistryProtocol implements Protocol {
         //export invoker
         final ExporterChangeableWrapper<T> exporter = doLocalExport(originInvoker);
 
+        //originInvoker.getUrl=>registry://224.5.6.7:1234/com.alibaba.dubbo.registry.RegistryService
+        //registryUrl==>multicast://224.5.6.7:1234/com.alibaba.dubbo.registry.RegistryService
         URL registryUrl = getRegistryUrl(originInvoker);
 
         //registry provider
@@ -208,11 +202,15 @@ public class RegistryProtocol implements Protocol {
      * @return
      */
     private Registry getRegistry(final Invoker<?> originInvoker) {
+        //originInvoker.getUrl=>registry://224.5.6.7:1234/com.alibaba.dubbo.registry.RegistryService
+        //registryUrl==>multicast://224.5.6.7:1234/com.alibaba.dubbo.registry.RegistryService
         URL registryUrl = getRegistryUrl(originInvoker);
         return registryFactory.getRegistry(registryUrl);
     }
 
     private URL getRegistryUrl(Invoker<?> originInvoker) {
+        ///originInvoker.getUrl=>registry://224.5.6.7:1234/com.alibaba.dubbo.registry.RegistryService
+        //registryUrl==>multicast://224.5.6.7:1234/com.alibaba.dubbo.registry.RegistryService
         URL registryUrl = originInvoker.getUrl();
         if (Constants.REGISTRY_PROTOCOL.equals(registryUrl.getProtocol())) {
             String protocol = registryUrl.getParameter(Constants.REGISTRY_KEY, Constants.DEFAULT_DIRECTORY);
@@ -256,6 +254,8 @@ public class RegistryProtocol implements Protocol {
     private URL getProviderUrl(final Invoker<?> origininvoker) {
         //origininvoker中的url，为zk的ip端口
         //export为本地ip，加要暴露的端口
+        //export==>dubbo://192.168.0.3:20880/com.alibaba.dubbo.demo.DemoService
+        //origininvoker==>registry://127.0.0.1:2181/com.alibaba.dubbo.registry.RegistryService
         String export = origininvoker.getUrl().getParameterAndDecoded(Constants.EXPORT_KEY);
         if (export == null || export.length() == 0) {
             throw new IllegalArgumentException("The registry export url is null! registry: " + origininvoker.getUrl());
@@ -272,6 +272,8 @@ public class RegistryProtocol implements Protocol {
      * @return
      */
     private String getCacheKey(final Invoker<?> originInvoker) {
+        //providerUrl==>dubbo://192.168.0.3:20880/com.alibaba.dubbo.demo.DemoService
+        //origininvoker==>registry://127.0.0.1:2181/com.alibaba.dubbo.registry.RegistryService
         URL providerUrl = getProviderUrl(originInvoker);
         String key = providerUrl.removeParameters("dynamic", "enabled").toFullString();
         return key;
@@ -308,6 +310,8 @@ public class RegistryProtocol implements Protocol {
         directory.setProtocol(protocol);
         // all attributes of REFER_KEY
         Map<String, String> parameters = new HashMap<String, String>(directory.getUrl().getParameters());
+        //url==>zookeeper://127.0.0.1:2181/com.alibaba.dubbo.registry.RegistryService
+        //subscribeUrl==>consumer://192.168.0.3/com.alibaba.dubbo.demo.DemoService
         URL subscribeUrl = new URL(Constants.CONSUMER_PROTOCOL, parameters.remove(Constants.REGISTER_IP_KEY), 0, type.getName(), parameters);
         if (!Constants.ANY_VALUE.equals(url.getServiceInterface())
                 && url.getParameter(Constants.REGISTER_KEY, true)) {

@@ -90,6 +90,9 @@ public abstract class AbstractConfig implements Serializable {
         return value;
     }
 
+    /**
+     * System.getProperty(-D) > xml > dubbo.properties
+     * */
     protected static void appendProperties(AbstractConfig config) {
         if (config == null) {
             return;
@@ -104,7 +107,7 @@ public abstract class AbstractConfig implements Serializable {
                     String property = StringUtils.camelToSplitName(name.substring(3, 4).toLowerCase() + name.substring(4), ".");
 
                     String value = null;
-                    //从系统变量中取默认配置
+                    //从系统变量中取默认配置System.getProperty(-D)
                     if (config.getId() != null && config.getId().length() > 0) {
                         String pn = prefix + config.getId() + "." + property;
                         value = System.getProperty(pn);
@@ -112,7 +115,7 @@ public abstract class AbstractConfig implements Serializable {
                             logger.info("Use System Property " + pn + " to config dubbo");
                         }
                     }
-                    //从系统变量中取默认配置
+                    //从系统变量中取默认配置System.getProperty(-D)
                     if (value == null || value.length() == 0) {
                         String pn = prefix + property;
                         value = System.getProperty(pn);
@@ -131,7 +134,7 @@ public abstract class AbstractConfig implements Serializable {
                                 getter = null;
                             }
                         }
-                        if (getter != null) {
+                        if (getter != null) {//xml中已配置就不为null,即不从dubbo.properties中取配置了
                             if (getter.invoke(config) == null) {
                                 if (config.getId() != null && config.getId().length() > 0) {
                                     value = ConfigUtils.getProperty(prefix + config.getId() + "." + property);
