@@ -23,18 +23,38 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 
 /**
- * Wrapper.
- */
+ * Wrapper.wiki:https://www.jianshu.com/p/dcfe426e9cd7简单的介绍了该类的作用，
+ * 看到生成的方法可知，在启动的时候创建wrapper，已经分析好了传参class的所有方法，已经写好了每个方法
+ * 名对应调用的真正方法，如果不这样做，调用时比如consumer调用了syaHello方法，provider势必要使用反射找到该方法，去invoke该方法，
+ * 使用调用的时候使用反射会影响性能
+ * */
+//生成的类重要方法：
+//      public Object invokeMethod(Object o, String n, Class[] p, Object[] v) throws java.lang.reflect.InvocationTargetException {
+//             dubbo.provider.hello.service.impl.HelloServiceImpl w;
+//             try {
+//                 w = ((dubbo.provider.hello.service.impl.HelloServiceImpl) $1);
+//             } catch (Throwable e) {
+//                 throw new IllegalArgumentException(e);
+//             }
+//             try {
+//                 if ("sayHello".equals($2) && $3.length == 0) {
+//                    w.sayHello();
+//                    return null;
+//                 }else if ("sayWorld".equals($2) && $3.length == 0) {
+//                    w.sayWorld();
+//                    return null;
+//                 }
+//             } catch (Throwable e) {
+//                 throw new java.lang.reflect.InvocationTargetException(e);
+//             }
+//             throw new com.alibaba.dubbo.common.bytecode.NoSuchMethodException("Not found method \"" + $2 + "\" in class dubbo.provider.hello.service.impl.HelloServiceImpl.");
+//       }
 public abstract class Wrapper {
     private static final Map<Class<?>, Wrapper> WRAPPER_MAP = new ConcurrentHashMap<Class<?>, Wrapper>(); //class wrapper map
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
