@@ -38,7 +38,6 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * ZookeeperRegistry
- *
  */
 public class ZookeeperRegistry extends FailbackRegistry {
 
@@ -130,6 +129,8 @@ public class ZookeeperRegistry extends FailbackRegistry {
     protected void doSubscribe(final URL url, final NotifyListener listener) {
         try {
             if (Constants.ANY_VALUE.equals(url.getServiceInterface())) {
+                //注册所有/dubbo下的节点监听变化，如果有一个节点child发生变化则，则把路径加入到anyServices中，并subscribe其child的变化
+                //这样一来，/dubbo下的所有节点，慢慢的都会被收入监听
                 String root = toRootPath();
                 ConcurrentMap<NotifyListener, ChildListener> listeners = zkListeners.get(url);
                 if (listeners == null) {
@@ -155,6 +156,7 @@ public class ZookeeperRegistry extends FailbackRegistry {
                 }
                 zkClient.create(root, false);
                 List<String> services = zkClient.addChildListener(root, zkListener);
+                //注册监听之前已经存在的节点，则监听之
                 if (services != null && !services.isEmpty()) {
                     for (String service : services) {
                         service = URL.decode(service);
@@ -164,6 +166,11 @@ public class ZookeeperRegistry extends FailbackRegistry {
                     }
                 }
             } else {
+                //找到url的所有categoriesPath，将参数中的listener转换为zkClient需要的ChildListener
+                //向zkClient注册ChildListener，监听所有categoriesPath子节点的变化，如果发生变化
+                //1将注册的url，listener，和匹配出来的urls这三个参数发给this.notify方法
+                //2获取注册listener时候已经在zk上存在的 所有categoriesPath的子节点，并调用this.notify方法
+                //this.notify其实调用的是，AbstractRegistry.notify方法
                 List<URL> urls = new ArrayList<URL>();
                 for (String path : toCategoriesPath(url)) {
                     ConcurrentMap<NotifyListener, ChildListener> listeners = zkListeners.get(url);
@@ -212,6 +219,10 @@ public class ZookeeperRegistry extends FailbackRegistry {
         }
     }
 
+    /**
+     *找到url所有categoriesPath，再找到每个categoriesPath下的子节点加入list
+     * 根据url过滤list,选择匹配的url集合返回
+     * */
     @Override
     public List<URL> lookup(URL url) {
         if (url == null) {
@@ -273,6 +284,9 @@ public class ZookeeperRegistry extends FailbackRegistry {
         return toCategoryPath(url) + Constants.PATH_SEPARATOR + URL.encode(url.toFullString());
     }
 
+    /**
+     * 从providers过滤出匹配consumer的url
+     */
     private List<URL> toUrlsWithoutEmpty(URL consumer, List<String> providers) {
         List<URL> urls = new ArrayList<URL>();
         if (providers != null && !providers.isEmpty()) {
@@ -289,6 +303,10 @@ public class ZookeeperRegistry extends FailbackRegistry {
         return urls;
     }
 
+    /**
+     * 从providers过滤出匹配consumer的url
+     * 如果没有匹配出来，则用path中的category，加上consumer创建一个url放入list并返回
+     */
     private List<URL> toUrlsWithEmpty(URL consumer, String path, List<String> providers) {
         List<URL> urls = toUrlsWithoutEmpty(consumer, providers);
         if (urls == null || urls.isEmpty()) {

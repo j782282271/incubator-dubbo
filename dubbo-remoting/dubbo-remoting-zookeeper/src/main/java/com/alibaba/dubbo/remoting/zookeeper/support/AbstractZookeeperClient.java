@@ -37,7 +37,9 @@ public abstract class AbstractZookeeperClient<TargetChildListener> implements Zo
 
     private final Set<StateListener> stateListeners = new CopyOnWriteArraySet<StateListener>();
 
-    private final ConcurrentMap<String, ConcurrentMap<ChildListener, TargetChildListener>> childListeners = new ConcurrentHashMap<String, ConcurrentMap<ChildListener, TargetChildListener>>();
+    //state变化通知listener，state变化是指：与zk的连接状况，不是某个path的变化
+    //ChildListener ali封装的listener,TargetChildListener:zkClient要求的listener
+    private final ConcurrentMap<String/**path*/, ConcurrentMap<ChildListener, TargetChildListener>> childListeners = new ConcurrentHashMap<String, ConcurrentMap<ChildListener, TargetChildListener>>();
 
     private volatile boolean closed = false;
 
@@ -108,6 +110,9 @@ public abstract class AbstractZookeeperClient<TargetChildListener> implements Zo
         }
     }
 
+    /**
+     * state变化通知listener，state变化是指：与zk的连接状况，不是某个path的变化
+     * */
     protected void stateChanged(int state) {
         for (StateListener sessionListener : getSessionListeners()) {
             sessionListener.stateChanged(state);

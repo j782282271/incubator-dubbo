@@ -40,6 +40,10 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * AbstractRegistry. (SPI, Prototype, ThreadSafe)
+ * 功能1：定时刷缓存urls到文件、从文件中读urls
+ * 功能2：查找满足条件的urls，接收zk变化通知
+ * 功能3：注册url变化的listener
+ * 功能4：保存已经注册的urls集合
  */
 public abstract class AbstractRegistry implements Registry {
 
@@ -50,15 +54,22 @@ public abstract class AbstractRegistry implements Registry {
     // Log output
     protected final Logger logger = LoggerFactory.getLogger(getClass());
     // Local disk cache, where the special key value.registies records the list of registry centers, and the others are the list of notified service providers
+    //定时保存到文件的内存内容
     private final Properties properties = new Properties();
     // File cache timing writing
     private final ExecutorService registryCacheExecutor = Executors.newFixedThreadPool(1, new NamedThreadFactory("DubboSaveRegistryCache", true));
     // Is it synchronized to save the file
+    //是否同步保存磁盘
     private final boolean syncSaveFile;
+    //记录更新磁盘缓存配置的版本，防并发先来的的覆盖后来的
     private final AtomicLong lastCacheChanged = new AtomicLong();
+    //已注册过的url集合
     private final Set<URL> registered = new ConcurrentHashSet<URL>();
+    //监听category（包括config/route）目录下的的url配置变化情况
     private final ConcurrentMap<URL, Set<NotifyListener>> subscribed = new ConcurrentHashMap<URL, Set<NotifyListener>>();
+    //category（包括config/route）目录下的的url配置变化信息存储在内存notified中
     private final ConcurrentMap<URL, Map<String/**category*/, List<URL>>> notified = new ConcurrentHashMap<URL, Map<String, List<URL>>>();
+    //zookeeper://127.0.0.1:2181/com.alibaba.dubbo.registry.RegistryService?
     private URL registryUrl;
     // Local disk cache file
     private File file;
@@ -130,6 +141,9 @@ public abstract class AbstractRegistry implements Registry {
         return lastCacheChanged;
     }
 
+    /**
+     * properties保存到文件
+     */
     public void doSaveProperties(long version) {
         if (version < lastCacheChanged.get()) {
             return;
@@ -181,6 +195,9 @@ public abstract class AbstractRegistry implements Registry {
         }
     }
 
+    /**
+     * 文件-->properties
+     */
     private void loadProperties() {
         if (file != null && file.exists()) {
             InputStream in = null;
@@ -204,6 +221,11 @@ public abstract class AbstractRegistry implements Registry {
         }
     }
 
+    /**
+     * properties格式：
+     * serviceKey1-->url1 url2 url3...
+     * serviceKey2-->url4...
+     */
     public List<URL> getCacheUrls(URL url) {
         for (Map.Entry<Object, Object> entry : properties.entrySet()) {
             String key = (String) entry.getKey();
@@ -224,6 +246,7 @@ public abstract class AbstractRegistry implements Registry {
 
     /**
      * 根据url从notified map中查找满足条件的url集合
+     * 如果没找到满足条件的urls集合，则阻塞等待，一直到有为止
      */
     @Override
     public List<URL> lookup(URL url) {
