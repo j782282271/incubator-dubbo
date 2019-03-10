@@ -131,6 +131,8 @@ public class DubboProtocol extends AbstractProtocol {
         }
 
         private void invoke(Channel channel, String methodKey) {
+            //consumer请求A接口，此处channel.getUrl返回的接口可能是B接口（provider启动注册的第一个接口）
+            //此处调用的就是b接口的methodKey方法（onconnect或者ondisconnect），造成了混乱
             Invocation invocation = createInvocation(channel, channel.getUrl(), methodKey);
             if (invocation != null) {
                 try {
