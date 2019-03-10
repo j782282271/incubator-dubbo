@@ -261,8 +261,11 @@ public class DubboProtocol extends AbstractProtocol {
         if (isServer) {
             ExchangeServer server = serverMap.get(key);
             if (server == null) {
+                //provider的各种接口假如都在127.0.0.1:20880上暴露，则此处传进来的url只是第一个的接口url
+                //因为多个暴露的接口key都为127.0.0.1:20880，他们的server都为第一个url创建的
                 serverMap.put(key, createServer(url));
             } else {
+                //此处用最后一个url的信息reset NettyServer，并不会将NettyServer中的url替换掉，只会替换掉超时参数信息等
                 // server supports reset, use together with override
                 server.reset(url);
             }

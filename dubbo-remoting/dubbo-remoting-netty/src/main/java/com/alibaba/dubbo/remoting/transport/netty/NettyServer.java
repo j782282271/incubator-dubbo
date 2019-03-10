@@ -58,6 +58,8 @@ public class NettyServer extends AbstractServer implements Server {
     private org.jboss.netty.channel.Channel channel;
 
     public NettyServer(URL url, ChannelHandler handler) throws RemotingException {
+        //provider的各种接口假如都在127.0.0.1:20880上暴露，则此处传进来的url只是第一个的接口url
+        //原因见dubboProtocol的openServer方法
         super(url, ChannelHandlers.wrap(handler, ExecutorUtil.setThreadName(url, SERVER_THREAD_POOL_NAME)));
     }
 

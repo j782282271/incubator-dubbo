@@ -75,6 +75,7 @@ final class NettyCodecAdapter {
         protected Object encode(ChannelHandlerContext ctx, Channel ch, Object msg) throws Exception {
             com.alibaba.dubbo.remoting.buffer.ChannelBuffer buffer =
                     com.alibaba.dubbo.remoting.buffer.ChannelBuffers.dynamicBuffer(1024);
+            //此处url,返回结果一直是第一个接口暴露的url，原因见NettyServer的构造方法，即请求url为DemoServer，此处channel内的url可能为DemoTestService
             NettyChannel channel = NettyChannel.getOrAddChannel(ch, url, handler);
             try {
                 codec.encode(channel, buffer, msg);
