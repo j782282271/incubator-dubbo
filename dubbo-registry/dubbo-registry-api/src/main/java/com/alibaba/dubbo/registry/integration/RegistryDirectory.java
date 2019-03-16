@@ -50,14 +50,17 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
     private static final ConfiguratorFactory configuratorFactory = ExtensionLoader.getExtensionLoader(ConfiguratorFactory.class).getAdaptiveExtension();
     private final String serviceKey; // Initialization at construction time, assertion not null
     private final Class<T> serviceType; // Initialization at construction time, assertion not null
+    //consumer中配置的参数
     private final Map<String, String> queryMap; // Initialization at construction time, assertion not null
+    //super.url为 zookeeper://127.0.0.1:2181/com.alibaba.dubbo.registry.RegistryService?application=demo-consumer&dubbo=2.0.2&pid=8432&qos.port=33333&refer=application%3Ddemo-consumer%26check%3Dfalse%26dubbo%3D2.0.2%26interface%3Dcom.alibaba.dubbo.demo.DemoService%26methods%3DsayHello%26pid%3D8432%26qos.port%3D33333%26register.ip%3D10.13.1.45%26side%3Dconsumer%26timestamp%3D1549086269914&timestamp=1549086269954
+    //directoryUrl为super.url的参数变为consumer的参数，只初始化一次，运行过程中不变
     private final URL directoryUrl; // Initialization at construction time, assertion not null, and always assign non null value
     private final String[] serviceMethods;//{"sayHello"}
     private final boolean multiGroup;
     private Protocol protocol; // Initialization at the time of injection, the assertion is not null
     private Registry registry; // Initialization at the time of injection, the assertion is not null
     private volatile boolean forbidden = false;
-
+    //overrideDirectoryUrl为super.url的参数变为consumer的参数，zk configurators目录发生变化，会改变它
     private volatile URL overrideDirectoryUrl; // Initialization at construction time, assertion not null, and always assign non null value
 
     /**
@@ -65,16 +68,21 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
      * 优先级：override>-D>consumer>provider
      * 第一种规则：针对某个provider <ip:port,timeout=100>
      * 第二种规则：针对所有provider <* ,timeout=5000>
+     * 由overrideDirectoryUrl创建configurators
+     * 在consumer收到provider或者configurators目录变化信息后更新，对consumer的queyMap会合并prodiver的url参数，合并后，用configurator
+     * 再覆盖一下配置
      */
     private volatile List<Configurator> configurators; // The initial value is null and the midway may be assigned to null, please use the local variable reference
 
-    // Map<url, Invoker> cache service url to invoker mapping.
+    //获取zk provider目录下的url信息创建为Invoker存入此处，consumer路由使用，与configurators目录无关
+    // Map<url.fullString(), Invoker> cache service url to invoker mapping.
     private volatile Map<String, Invoker<T>> urlInvokerMap; // The initial value is null and the midway may be assigned to null, please use the local variable reference
 
     // Map<methodName, Invoker> cache service method to invokers mapping.
     private volatile Map<String, List<Invoker<T>>> methodInvokerMap; // The initial value is null and the midway may be assigned to null, please use the local variable reference
 
     // Set<invokerUrls> cache invokeUrls to invokers mapping.
+    //provider目录变化notify的url的url信息，urls变化信息，每次置位最新的
     private volatile Set<URL> cachedInvokerUrls; // The initial value is null and the midway may be assigned to null, please use the local variable reference
 
     public RegistryDirectory(Class<T> serviceType, URL url) {//consumer会调用
@@ -108,7 +116,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
      * 将overrideURL转换为map，供重新refer时使用.
      * 每次下发全部规则，全部重新组装计算
      *
-     * @param urls 契约：
+     * @param urls 约定：
      *             1.override://0.0.0.0/...(或override://ip:port...?anyhost=true)&para1=value1...表示全局规则(对所有的提供者全部生效)
      *             2.override://ip:port...?anyhost=false 特例规则（只针对某个提供者生效）
      *             3.不支持override://规则... 需要注册中心自行计算.
@@ -247,10 +255,12 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
         } else {
             this.forbidden = false; // Allow to access
             Map<String, Invoker<T>> oldUrlInvokerMap = this.urlInvokerMap; // local reference
-            //cachedInvokerUrls加入参数urls,cachedInvokerUrl会记录曾经所有invoker,即使已经关闭的invoker也会记录
+            //cachedInvokerUrls加入参数urls,cachedInvokerUrl会记录本次变化的urls
             if (invokerUrls.isEmpty() && this.cachedInvokerUrls != null) {
+                //本次invokerUrls为空，则使用上次的即cachedInvokerUrls
                 invokerUrls.addAll(this.cachedInvokerUrls);
             } else {
+                //本次invokerUrls不为空，清空cachedInvokerUrls，将本次urls放如其中
                 this.cachedInvokerUrls = new HashSet<URL>();
                 this.cachedInvokerUrls.addAll(invokerUrls);//Cached invoker urls, convenient for comparison
             }
@@ -265,6 +275,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
                 logger.error(new IllegalStateException("urls to invokers error .invokerUrls.size :" + invokerUrls.size() + ", invoker.size :0. urls :" + invokerUrls.toString()));
                 return;
             }
+            //multiGroup==true则合并同一方法下的同一个group的invoker为一个invoker
             this.methodInvokerMap = multiGroup ? toMergeMethodInvokerMap(newMethodInvokerMap) : newMethodInvokerMap;
             this.urlInvokerMap = newUrlInvokerMap;
             try {
@@ -278,9 +289,9 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
 
     /**
      * 输入：methodName1--> invoker1(group=a)、invoker2(group=a)、invoker3(group=b)    3个元素的list
-     * ******methodName2--> invoker1(group=a)、invoker2(group=a)、invoker3(group=a)   3个元素的list
-     * 输出：methodName1--> cluster.join(invoker1,invoker2)、cluster.join(invoker3)   2个元素的list
-     * ******methodName2--> invoker1(group=a)、invoker2(group=a)、invoker3(group=a)   33个元素的list
+     * ******methodName2--> invoker1(group=a)、invoker2(group=b)、invoker3(group=c)    3个元素的list
+     * 输出：methodName1--> cluster.join(invoker1,invoker2)、cluster.join(invoker3)    2个元素的list
+     * ******methodName2--> invoker1(group=a)、invoker2(group=b)、invoker3(group=c)    3个元素的list
      */
     private Map<String, List<Invoker<T>>> toMergeMethodInvokerMap(Map<String, List<Invoker<T>>> methodMap) {
         Map<String, List<Invoker<T>>> result = new HashMap<String, List<Invoker<T>>>();
@@ -347,8 +358,9 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
     }
 
     /**
-     * Turn urls into invokers, and if url has been refer, will not re-reference.
-     *
+     * 1用consumer协议过滤provider协议
+     * 2consumer的queryMap与provider合并，再用configrators目录下的配置覆盖，顺便将provider的一些参数信息加到this.overrideDirectoryUrl中，但是不会改变this.configurators
+     * 3找到url的key（fullString）,看看内存urlMap中是否有该invoker，有则使用该invoker，没有则创建一个
      * @param urls
      * @return invokers
      */
@@ -423,6 +435,9 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
 
     /**
      * Merge url parameters. the order is: override > -D >Consumer > Provider
+     * 1合并consumer、provider parameters
+     * 2用configurators覆盖consumer、provider parameters
+     * 3用providerUrl参数添加到this.overrideDirectoryUrl中，但是不会改变this.configurators
      *
      * @param providerUrl
      * @return
@@ -476,7 +491,8 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
 
     /**
      * Transform the invokers list into a mapping relationship with a method
-     *
+     *  1 method作为key创建新的map
+     *  2 根据this.serviceMethods找到本类支持的method，用route过滤他们的invoker集合
      * @param invokersMap Invoker Map
      * @return Mapping relation between Invoker and method
      */
