@@ -58,8 +58,11 @@ public class DecodeableRpcInvocation extends RpcInvocation implements Codec, Dec
         Assert.notNull(request, "request == null");
         Assert.notNull(is, "inputStream == null");
         this.channel = channel;
+        //request中的data会存this
         this.request = request;
+        //真正的数据流
         this.inputStream = is;
+        //序列化工具id
         this.serializationType = id;
     }
 

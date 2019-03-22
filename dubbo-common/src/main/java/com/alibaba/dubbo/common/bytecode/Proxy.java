@@ -191,6 +191,7 @@ public abstract class Proxy {
             clazz.getField("methods").set(null, methods.toArray(new Method[0]));
 
             // create Proxy class.
+            //工厂class，用于创建上面ccp创建的类，返回工厂类，外部用工厂类创建该工厂的ccp
             String fcn = Proxy.class.getName() + id;
             ccm = ClassGenerator.newInstance(cl);
             ccm.setClassName(fcn);

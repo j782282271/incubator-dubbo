@@ -35,6 +35,11 @@ import java.io.OutputStream;
  */
 public class TransportCodec extends AbstractCodec {
 
+    /**
+     * 1从channel获取serialization,用buffer创建serialization的output
+     * 2调用encodeData将msg编入output
+     * 3并flush output
+     */
     @Override
     public void encode(Channel channel, ChannelBuffer buffer, Object message) throws IOException {
         OutputStream output = new ChannelBufferOutputStream(buffer);
@@ -46,6 +51,10 @@ public class TransportCodec extends AbstractCodec {
         }
     }
 
+    /**
+     * 1从channel获取serialization,用buffer创建serialization的input
+     * 2调用decodeData解析input中的数据，返回
+     */
     @Override
     public Object decode(Channel channel, ChannelBuffer buffer) throws IOException {
         InputStream input = new ChannelBufferInputStream(buffer);

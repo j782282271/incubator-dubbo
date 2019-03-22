@@ -29,6 +29,9 @@ import com.alibaba.dubbo.remoting.transport.codec.CodecAdapter;
 
 /**
  * AbstractEndpoint
+ * 1保存Codec2
+ * 2connectTimeout client会使用
+ * 3
  */
 public abstract class AbstractEndpoint extends AbstractPeer implements Resetable {
 
@@ -36,6 +39,7 @@ public abstract class AbstractEndpoint extends AbstractPeer implements Resetable
 
     private Codec2 codec;
 
+    //无用
     private int timeout;
 
     private int connectTimeout;

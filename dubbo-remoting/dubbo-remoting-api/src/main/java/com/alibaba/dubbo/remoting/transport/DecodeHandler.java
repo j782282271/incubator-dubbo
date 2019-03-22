@@ -34,6 +34,11 @@ public class DecodeHandler extends AbstractChannelHandlerDelegate {
         super(handler);
     }
 
+    /**
+     * Codec2执行完decode会调用本方法
+     * 如果没decode则decode，实际上在DubboCountCodec的decode中已decode了
+     * 默认this.handler为HeaderExchangeHandler,执行handler.received(channel, message);
+     */
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
         if (message instanceof Decodeable) {

@@ -36,7 +36,9 @@ import com.alibaba.dubbo.remoting.transport.ChannelHandlerDelegate;
 import java.net.InetSocketAddress;
 
 /**
- * ExchangeReceiver
+ * 处理request与response
+ * 如果为req，则取出其中的DecodeableRpcInvocation，交由this.handler处理this.handler处理完毕返回RpcResult，将RpcResult封装为response返回
+ * 如果是Response则找到对应的reqFuture，将数据放入
  */
 public class HeaderExchangeHandler implements ChannelHandlerDelegate {
 
@@ -75,6 +77,11 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
         }
     }
 
+    /**
+     * 处理req，将结果封装为response，返回，req与res的id相同
+     * 调用req.getData()返回DecodeableRpcInvocation，将他作为参数传给this.handler.reply()方法
+     * reply返回RpcResult放入Response.result字段
+     */
     Response handleRequest(ExchangeChannel channel, Request req) throws RemotingException {
         Response res = new Response(req.getId(), req.getVersion());
         if (req.isBroken()) {
@@ -90,9 +97,11 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
             return res;
         }
         // find handler by message class.
+        //DecodeableRpcInvocation
         Object msg = req.getData();
         try {
             // handle data.
+            //result为RpcResult
             Object result = handler.reply(channel, msg);
             res.setStatus(Response.OK);
             res.setResult(result);
@@ -158,6 +167,13 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
         }
     }
 
+    /**
+     * DecodeHandler.received会调用此方法，在调用之前message已经decode完毕
+     * 此方法区分req还是res，进行不同的处理。
+     * 如果是req则调用this.handler处理并将返回值send到channel
+     * 如果是Response则找到对应的reqFuture，将数据放入
+     * 如果是String telnet
+     */
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
         channel.setAttribute(KEY_READ_TIMESTAMP, System.currentTimeMillis());

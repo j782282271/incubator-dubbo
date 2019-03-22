@@ -48,31 +48,49 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
 
     public static final String NAME = "dubbo";
     public static final String DUBBO_VERSION = Version.getProtocolVersion();
+
+    //各种类型的response 编码中的body前缀标识
     public static final byte RESPONSE_WITH_EXCEPTION = 0;
     public static final byte RESPONSE_VALUE = 1;
     public static final byte RESPONSE_NULL_VALUE = 2;
     public static final byte RESPONSE_WITH_EXCEPTION_WITH_ATTACHMENTS = 3;
     public static final byte RESPONSE_VALUE_WITH_ATTACHMENTS = 4;
     public static final byte RESPONSE_NULL_VALUE_WITH_ATTACHMENTS = 5;
+
     public static final Object[] EMPTY_OBJECT_ARRAY = new Object[0];
     public static final Class<?>[] EMPTY_CLASS_ARRAY = new Class<?>[0];
     private static final Logger log = LoggerFactory.getLogger(DubboCodec.class);
 
+    /**
+     * decodeBody，区分并创建request、Response并返回
+     *
+     * @param is 中含有len信息，见父类decode方法，创建is时已经指定了len
+     * @return Response，Response的result为DecodeableRpcResult，
+     *          DecodeableRpcResult的result为真正的返回值，exception为异常返回值，attach为其它附加参数
+     * @return Request，Request的data为DecodeableRpcInvocation，
+     *          DecodeableRpcInvocation的result为真正的返回值，exception为异常返回值，attach为其它附加参数
+     */
     @Override
     protected Object decodeBody(Channel channel, InputStream is, byte[] header) throws IOException {
-        byte flag = header[2], proto = (byte) (flag & SERIALIZATION_MASK);
+        byte flag = header[2],
+                //序列化id，通过该id找到序列化子类
+                proto = (byte) (flag & SERIALIZATION_MASK);
         // get request id.
         long id = Bytes.bytes2long(header, 4);
+        //非request,consumer请求provider后收到provider的Response，
+        //创建Response从header中找到id，根据id找到对应的请求Invocation
+        //创建DecodeableRpcResult并用它做真正的decode得到返回值，将它放到Response中result字段
         if ((flag & FLAG_REQUEST) == 0) {
             // decode response.
             Response res = new Response(id);
             if ((flag & FLAG_EVENT) != 0) {
                 res.setEvent(Response.HEARTBEAT_EVENT);
             }
-            // get status.
+            // get status.Response的status可能为超时等等状态，标识provider处理超时
             byte status = header[3];
             res.setStatus(status);
             try {
+                //proto 序列化id，通过该id找到序列化子类
                 ObjectInput in = CodecSupport.deserialize(channel.getUrl(), is, proto);
                 if (status == Response.OK) {
                     Object data;
@@ -87,6 +105,7 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
                                 Constants.DEFAULT_DECODE_IN_IO_THREAD)) {
                             result = new DecodeableRpcResult(channel, res, is,
                                     (Invocation) getRequestData(id), proto);
+                            //真正的decode调用方法返回值
                             result.decode();
                         } else {
                             result = new DecodeableRpcResult(channel, res,
@@ -96,7 +115,7 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
                         data = result;
                     }
                     res.setResult(data);
-                } else {
+                } else {//超时等等其他状态直接设置error msg
                     res.setErrorMessage(in.readUTF());
                 }
             } catch (Throwable t) {
@@ -109,6 +128,10 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
             return res;
         } else {
             // decode request.
+            //provider接收consumer发来的请求数据，将其封装为request，供handler使用
+            //使用请求id创建Request
+            //创建并选择反序列化工具，创建DecodeableRpcInvocation
+            //DecodeableRpcInvocation.decode真正的去反序列化
             Request req = new Request(id);
             req.setVersion(Version.getProtocolVersion());
             req.setTwoWay((flag & FLAG_TWOWAY) != 0);

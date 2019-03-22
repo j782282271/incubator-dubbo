@@ -36,6 +36,10 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * AbstractServer
+ * 1关闭功能
+ * 2重置功能、控制allhandler的executor重置pool size功能
+ * 3限制连接数功能
+ * 4idleTimeout
  */
 public abstract class AbstractServer extends AbstractEndpoint implements Server {
 
@@ -44,6 +48,7 @@ public abstract class AbstractServer extends AbstractEndpoint implements Server 
     ExecutorService executor;
     private InetSocketAddress localAddress;
     private InetSocketAddress bindAddress;
+    //最大可接受channel数量
     private int accepts;
     private int idleTimeout = 600; //600 seconds
 
@@ -70,6 +75,7 @@ public abstract class AbstractServer extends AbstractEndpoint implements Server 
         }
         //fixme replace this with better method
         DataStore dataStore = ExtensionLoader.getExtensionLoader(DataStore.class).getDefaultExtension();
+        //WrappedChannelHandler中会被put进来
         executor = (ExecutorService) dataStore.get(Constants.EXECUTOR_SERVICE_COMPONENT_KEY, Integer.toString(url.getPort()));
     }
 

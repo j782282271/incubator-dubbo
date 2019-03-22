@@ -25,6 +25,7 @@ import com.alibaba.dubbo.remoting.RemotingException;
 
 /**
  * AbstractPeer
+ * 实际就是ChannelHandler的作用
  */
 public abstract class AbstractPeer implements Endpoint, ChannelHandler {
 

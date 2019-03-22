@@ -31,7 +31,7 @@ import java.util.Collection;
 public interface Server extends Endpoint, Resetable {
 
     /**
-     * is bound.
+     * is bound. channel是否被bound到localaddr
      *
      * @return bound
      */
