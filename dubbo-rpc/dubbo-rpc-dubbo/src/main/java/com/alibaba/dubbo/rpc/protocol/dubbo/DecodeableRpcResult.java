@@ -58,9 +58,13 @@ public class DecodeableRpcResult extends RpcResult implements Codec, Decodeable 
         Assert.notNull(response, "response == null");
         Assert.notNull(is, "inputStream == null");
         this.channel = channel;
+        //对应的response,response.setResult会把this放进来
         this.response = response;
+        //网络返回数据流
         this.inputStream = is;
+        //请求invocation
         this.invocation = invocation;
+        //序列化子类id
         this.serializationType = id;
     }
 
@@ -69,6 +73,11 @@ public class DecodeableRpcResult extends RpcResult implements Codec, Decodeable 
         throw new UnsupportedOperationException();
     }
 
+    /**
+     * 从input中反序列化出数据，该值即为方法调用返回值，赋值给result
+     * 区分exception、是否含有attachment，如果含有attach,将其赋值给this.attachments
+     *
+     * */
     @Override
     public Object decode(Channel channel, InputStream input) throws IOException {
         ObjectInput in = CodecSupport.getSerialization(channel.getUrl(), serializationType)

@@ -20,17 +20,10 @@ import com.alibaba.dubbo.common.Constants;
 import com.alibaba.dubbo.common.URL;
 import com.alibaba.dubbo.remoting.Codec2;
 import com.alibaba.dubbo.remoting.buffer.DynamicChannelBuffer;
-
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
-import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.ChannelHandler;
+import org.jboss.netty.channel.*;
 import org.jboss.netty.channel.ChannelHandler.Sharable;
-import org.jboss.netty.channel.ChannelHandlerContext;
-import org.jboss.netty.channel.Channels;
-import org.jboss.netty.channel.ExceptionEvent;
-import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.handler.codec.oneone.OneToOneEncoder;
 
 import java.io.IOException;
@@ -71,6 +64,9 @@ final class NettyCodecAdapter {
     @Sharable
     private class InternalEncoder extends OneToOneEncoder {
 
+        /**
+         * msg可能为request或response，codec.encode区分request或response，进行编码
+         */
         @Override
         protected Object encode(ChannelHandlerContext ctx, Channel ch, Object msg) throws Exception {
             com.alibaba.dubbo.remoting.buffer.ChannelBuffer buffer =
@@ -91,6 +87,11 @@ final class NettyCodecAdapter {
         private com.alibaba.dubbo.remoting.buffer.ChannelBuffer buffer =
                 com.alibaba.dubbo.remoting.buffer.ChannelBuffers.EMPTY_BUFFER;
 
+        /**
+         * 接收的消息可能为request或response，codec.decode根据header中的flag，将消息decode为req或res,传给handler
+         * 默认配置第一个handler为MultiMessageHandler=》HeartbeatHandler=》AllChannelHandler=》DecodeHandler=》HeaderExchangeHandler=》dubboProtocol$handler
+         * ***********************处理req res 创建server时载入的*************************|||处理req res由exchanger载入**********||||req才会走到此handler处理rpcInvocation（req中）返回rpcResult（response中）
+         */
         @Override
         public void messageReceived(ChannelHandlerContext ctx, MessageEvent event) throws Exception {
             Object o = event.getMessage();

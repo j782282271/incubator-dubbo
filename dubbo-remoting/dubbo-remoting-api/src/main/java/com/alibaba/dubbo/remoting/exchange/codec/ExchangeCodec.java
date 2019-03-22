@@ -43,9 +43,6 @@ import java.io.InputStream;
 
 /**
  * ExchangeCodec.
- *
- *
- *
  */
 public class ExchangeCodec extends TelnetCodec {
 
@@ -66,6 +63,11 @@ public class ExchangeCodec extends TelnetCodec {
         return MAGIC;
     }
 
+    /**
+     * Object为Request则按照Request编码
+     * Object为Response则按照Response编码
+     * Object非以上则按照telnet编码
+     */
     @Override
     public void encode(Channel channel, ChannelBuffer buffer, Object msg) throws IOException {
         if (msg instanceof Request) {
@@ -77,6 +79,9 @@ public class ExchangeCodec extends TelnetCodec {
         }
     }
 
+    /**
+     * 将buffer中的header读入到header数组中
+     */
     @Override
     public Object decode(Channel channel, ChannelBuffer buffer) throws IOException {
         int readable = buffer.readableBytes();
@@ -85,16 +90,22 @@ public class ExchangeCodec extends TelnetCodec {
         return decode(channel, buffer, readable, header);
     }
 
+    /**
+     * 解析header
+     * 解析body，实际调用其子类的decodeBody
+     */
     @Override
     protected Object decode(Channel channel, ChannelBuffer buffer, int readable, byte[] header) throws IOException {
-        // check magic number.
-        if (readable > 0 && header[0] != MAGIC_HIGH
-                || readable > 1 && header[1] != MAGIC_LOW) {
+        //header不以magic number开头,telnet
+        if (readable > 0 && header[0] != MAGIC_HIGH || readable > 1 && header[1] != MAGIC_LOW) {
             int length = header.length;
             if (header.length < readable) {
+                //读入多有可读字节到header中
                 header = Bytes.copyOf(header, readable);
                 buffer.readBytes(header, length, readable - length);
             }
+            //检查header中以magic number开头的字节，重新加入到header中
+            //重置readerIndex为magic number处
             for (int i = 1; i < header.length - 1; i++) {
                 if (header[i] == MAGIC_HIGH && header[i + 1] == MAGIC_LOW) {
                     buffer.readerIndex(buffer.readerIndex() - header.length + i);
@@ -102,9 +113,10 @@ public class ExchangeCodec extends TelnetCodec {
                     break;
                 }
             }
+            //调用telnet的decode
             return super.decode(channel, buffer, readable, header);
         }
-        // check length.
+        //检查
         if (readable < HEADER_LENGTH) {
             return DecodeResult.NEED_MORE_INPUT;
         }
@@ -119,6 +131,7 @@ public class ExchangeCodec extends TelnetCodec {
         }
 
         // limit input stream.
+        //is中含有len信息
         ChannelBufferInputStream is = new ChannelBufferInputStream(buffer, len);
 
         try {
@@ -208,6 +221,12 @@ public class ExchangeCodec extends TelnetCodec {
         return req.getData();
     }
 
+    /**
+     * 1加入header信息 encode
+     * 2body encode:
+     * 2.1req如果为event则调用本类的encodeEventData
+     * 2.2req如果普通消息，则调用子类encodeRequestData(chann,req.getData,req.version),其中req.getData是RpcInvocation
+     */
     protected void encodeRequest(Channel channel, ChannelBuffer buffer, Request req) throws IOException {
         Serialization serialization = getSerialization(channel);
         // header.
@@ -250,6 +269,12 @@ public class ExchangeCodec extends TelnetCodec {
         buffer.writerIndex(savedWriteIndex + HEADER_LENGTH + len);
     }
 
+    /**
+     * 1加入header信息 encode
+     * 2body encode:
+     * 2.1req如果为isHeartbeat则调用本类的encodeEventData
+     * 2.2req如果普通消息，则调用子类encodeResponseData(chann,req.getResult,req.version),其中req.getResulta是Result类型
+     */
     protected void encodeResponse(Channel channel, ChannelBuffer buffer, Response res) throws IOException {
         int savedWriteIndex = buffer.writerIndex();
         try {

@@ -38,6 +38,12 @@ public final class DubboCountCodec implements Codec2 {
         codec.encode(channel, buffer, msg);
     }
 
+    /**
+     * 功能：
+     * 0)底层使用DubboCodec decode
+     * 1)一次decode可返回MultiMessage（多msg），DubboCodec一次只能解析一个msg
+     * 2)如果解析出来的msg为Request或Response，则在其属性(data或者result)数据的attchment中加入字节长度数据
+     */
     @Override
     public Object decode(Channel channel, ChannelBuffer buffer) throws IOException {
         int save = buffer.readerIndex();

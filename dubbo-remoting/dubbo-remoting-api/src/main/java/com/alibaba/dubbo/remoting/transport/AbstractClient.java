@@ -33,11 +33,7 @@ import com.alibaba.dubbo.remoting.RemotingException;
 import com.alibaba.dubbo.remoting.transport.dispatcher.ChannelHandlers;
 
 import java.net.InetSocketAddress;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
@@ -45,6 +41,8 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * AbstractClient
+ * 1重连时间配置
+ * 2
  */
 public abstract class AbstractClient extends AbstractEndpoint implements Client {
 
@@ -53,6 +51,7 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
     private static final AtomicInteger CLIENT_THREAD_POOL_ID = new AtomicInteger();
     private static final ScheduledThreadPoolExecutor reconnectExecutorService = new ScheduledThreadPoolExecutor(2, new NamedThreadFactory("DubboClientReconnectTimer", true));
     private final Lock connectLock = new ReentrantLock();
+    //发送时候发现断了，是否reconnect
     private final boolean send_reconnect;
     private final AtomicInteger reconnect_count = new AtomicInteger(0);
     // Reconnection error log has been called before?
@@ -104,7 +103,7 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
                     "Failed to start " + getClass().getSimpleName() + " " + NetUtils.getLocalAddress()
                             + " connect to the server " + getRemoteAddress() + ", cause: " + t.getMessage(), t);
         }
-
+        //WrappedChannelHandler中会被put进来
         executor = (ExecutorService) ExtensionLoader.getExtensionLoader(DataStore.class)
                 .getDefaultExtension().get(Constants.CONSUMER_SIDE, Integer.toString(url.getPort()));
         ExtensionLoader.getExtensionLoader(DataStore.class)

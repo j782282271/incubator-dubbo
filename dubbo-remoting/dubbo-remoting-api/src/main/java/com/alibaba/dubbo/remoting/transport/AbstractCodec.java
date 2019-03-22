@@ -58,7 +58,10 @@ public abstract class AbstractCodec implements Codec2 {
         } else if ("server".equals(side)) {
             return false;
         } else {
+            //remote addr
             InetSocketAddress address = channel.getRemoteAddress();
+            //如果是client需要连接server，所以需要server的url，所以channel.getUrl()应该是remote 的url
+            //所以如果url.getPort() == address.getPort()是client的标准之一
             URL url = channel.getUrl();
             boolean client = url.getPort() == address.getPort()
                     && NetUtils.filterLocalHost(url.getIp()).equals(

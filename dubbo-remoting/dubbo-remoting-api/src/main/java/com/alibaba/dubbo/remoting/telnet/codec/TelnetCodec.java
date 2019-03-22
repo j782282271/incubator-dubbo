@@ -52,6 +52,9 @@ public class TelnetCodec extends TransportCodec {
 
     private static final List<?> EXIT = Arrays.asList(new Object[]{new byte[]{3} /* Windows Ctrl+C */, new byte[]{-1, -12, -1, -3, 6} /* Linux Ctrl+C */, new byte[]{-1, -19, -1, -3, 6} /* Linux Pause */});
 
+    /**
+     * 从channel的attch或者channel.url的attch中获取charset
+     */
     private static Charset getCharset(Channel channel) {
         if (channel != null) {
             Object attribute = channel.getAttribute(Constants.CHARSET_KEY);
@@ -84,21 +87,24 @@ public class TelnetCodec extends TransportCodec {
         return Charset.defaultCharset();
     }
 
+    /**
+     * 从message中解码出string
+     */
     private static String toString(byte[] message, Charset charset) throws UnsupportedEncodingException {
         byte[] copy = new byte[message.length];
         int index = 0;
         for (int i = 0; i < message.length; i++) {
             byte b = message[i];
-            if (b == '\b') { // backspace
+            if (b == '\b') { // backspace,删除前面的元素按键
                 if (index > 0) {
                     index--;
                 }
-                if (i > 2 && message[i - 2] < 0) { // double byte char
+                if (i > 2 && message[i - 2] < 0) { // double byte char，双字节char在删除一个元素，即删除双字节，unicode编码双字节的char都是负值即大于128，首位为1
                     if (index > 0) {
                         index--;
                     }
                 }
-            } else if (b == 27) { // escape
+            } else if (b == 27) { // escape，跳过接下来的几位
                 if (i < message.length - 4 && message[i + 4] == 126) {
                     i = i + 4;
                 } else if (i < message.length - 3 && message[i + 3] == 126) {
@@ -107,7 +113,7 @@ public class TelnetCodec extends TransportCodec {
                     i = i + 2;
                 }
             } else if (b == -1 && i < message.length - 2
-                    && (message[i + 1] == -3 || message[i + 1] == -5)) { // handshake
+                    && (message[i + 1] == -3 || message[i + 1] == -5)) { // handshake，握手数据跳过握手那几位
                 i = i + 2;
             } else {
                 copy[index++] = message[i];
@@ -123,6 +129,9 @@ public class TelnetCodec extends TransportCodec {
         return message.length == command.length && endsWith(message, command);
     }
 
+    /**
+     * message是否以command结尾
+     */
     private static boolean endsWith(byte[] message, byte[] command) throws IOException {
         if (message.length < command.length) {
             return false;
@@ -136,15 +145,19 @@ public class TelnetCodec extends TransportCodec {
         return true;
     }
 
+    /**
+     * 不需要序列化工具直接编码String
+     */
     @Override
     public void encode(Channel channel, ChannelBuffer buffer, Object message) throws IOException {
         if (message instanceof String) {
             if (isClientSide(channel)) {
                 message = message + "\r\n";
             }
+
             byte[] msgData = ((String) message).getBytes(getCharset(channel).name());
             buffer.writeBytes(msgData);
-        } else {
+        } else {//自己处理不了交由上游处理
             super.encode(channel, buffer, message);
         }
     }
@@ -157,7 +170,14 @@ public class TelnetCodec extends TransportCodec {
         return decode(channel, buffer, readable, message);
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * 1如果是client则有多少数据，直接用编码方式decode即可
+     * 2以下针对server：
+     * 2.1backspace结尾检测
+     * 2.2EXIT结尾检测
+     * 2.3up down键检测，查找历史命令
+     * 2.4记录命令到history
+     */
     protected Object decode(Channel channel, ChannelBuffer buffer, int readable, byte[] message) throws IOException {
         if (isClientSide(channel)) {
             return toString(message, getCharset(channel));

@@ -54,6 +54,7 @@ public class WrappedChannelHandler implements ChannelHandlerDelegate {
             componentKey = Constants.CONSUMER_SIDE;
         }
         DataStore dataStore = ExtensionLoader.getExtensionLoader(DataStore.class).getDefaultExtension();
+        //此处放入executor,会在AbstractServer的构造函数中取出来，作为
         dataStore.put(componentKey, Integer.toString(url.getPort()), executor);
     }
 

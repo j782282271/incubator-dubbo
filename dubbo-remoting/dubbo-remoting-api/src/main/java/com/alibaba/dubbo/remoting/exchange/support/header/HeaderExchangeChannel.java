@@ -34,7 +34,6 @@ import com.alibaba.dubbo.remoting.exchange.support.DefaultFuture;
 import java.net.InetSocketAddress;
 
 /**
- * ExchangeReceiver
  * 将消息封装成request发送出去
  */
 final class HeaderExchangeChannel implements ExchangeChannel {
