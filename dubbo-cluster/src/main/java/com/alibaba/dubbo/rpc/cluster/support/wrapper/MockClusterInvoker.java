@@ -68,7 +68,7 @@ public class MockClusterInvoker<T> implements Invoker<T> {
     @Override
     public Result invoke(Invocation invocation) throws RpcException {
         Result result = null;
-
+        //directory.getUrl()：zookeeper://127.0.0.1:2181/com.alibaba.dubbo.registry.RegistryService?application=demo-consumer&dubbo=2.0.2&pid=4072&qos.port=33333&refer=application%3Ddemo-consumer%26check%3Dfalse%26dubbo%3D2.0.2%26interface%3Dcom.alibaba.dubbo.demo.DemoService%26methods%3DsayHello%26pid%3D4072%26qos.port%3D33333%26register.ip%3D192.168.0.5%26side%3Dconsumer%26timestamp%3D1552814967347&timestamp=1552814967397
         String value = directory.getUrl().getMethodParameter(invocation.getMethodName(), Constants.MOCK_KEY, Boolean.FALSE.toString()).trim();
         if (value.length() == 0 || value.equalsIgnoreCase("false")) {
             //no mock
