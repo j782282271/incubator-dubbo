@@ -23,7 +23,6 @@ import com.alibaba.dubbo.common.logger.LoggerFactory;
 import com.alibaba.dubbo.remoting.ChannelHandler;
 import com.alibaba.dubbo.remoting.RemotingException;
 import com.alibaba.dubbo.remoting.transport.AbstractChannel;
-
 import org.jboss.netty.channel.ChannelFuture;
 
 import java.net.InetSocketAddress;
@@ -33,6 +32,11 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * NettyChannel.
+ * 0存了url
+ * 1保存了全局所有的NettyChannel
+ * 2比netty 原生的channel多了attr
+ * 3发送支持同步异步等待参数
+ * 4仅仅用来发送，读取的话NettyCodecAdapter可以获取到channelbuffer,从buffer读
  */
 final class NettyChannel extends AbstractChannel {
 
@@ -90,6 +94,9 @@ final class NettyChannel extends AbstractChannel {
         return channel.isConnected();
     }
 
+    /**
+     * 向netty的channel发消息，如果sent=true代表同步发送，等待发送结果
+     */
     @Override
     public void send(Object message, boolean sent) throws RemotingException {
         super.send(message, sent);

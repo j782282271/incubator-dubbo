@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * ReplierDispatcher
+ * 根据class选择Replier来执行reply方法
  */
 public class ReplierDispatcher implements Replier<Object> {
 

@@ -42,6 +42,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * ExchangeServerImpl
+ * 1处理心跳，开启定时发心跳到client的任务：HeartBeatTask
+ * 2关闭通知client只读消息，然后sleep 10 mill后关闭
  */
 public class HeaderExchangeServer implements ExchangeServer {
 
@@ -54,8 +56,9 @@ public class HeaderExchangeServer implements ExchangeServer {
     private final Server server;
     // heartbeat timer
     private ScheduledFuture<?> heartbeatTimer;
-    // heartbeat timeout (ms), default value is 0 , won't execute a heartbeat.
+    //heartbeatInterval
     private int heartbeat;
+    // heartbeat timeout (ms), default value is 0 , won't execute a heartbeat.
     private int heartbeatTimeout;
     private AtomicBoolean closed = new AtomicBoolean(false);
 
@@ -110,8 +113,10 @@ public class HeaderExchangeServer implements ExchangeServer {
             final long max = (long) timeout;
             final long start = System.currentTimeMillis();
             if (getUrl().getParameter(Constants.CHANNEL_SEND_READONLYEVENT_KEY, true)) {
+                //要close，通知channel，只读事件
                 sendChannelReadOnlyEvent();
             }
+            //停10mill second在真正地停止服务
             while (HeaderExchangeServer.this.isRunning()
                     && System.currentTimeMillis() - start < max) {
                 try {

@@ -27,8 +27,8 @@ import com.alibaba.dubbo.remoting.transport.DecodeHandler;
 
 /**
  * DefaultMessenger
- *
- *
+ * 将NettyClient再包装为HeaderExchangeClient
+ * 将NettyServer再包装为HeaderExchangeServer
  */
 public class HeaderExchanger implements Exchanger {
 

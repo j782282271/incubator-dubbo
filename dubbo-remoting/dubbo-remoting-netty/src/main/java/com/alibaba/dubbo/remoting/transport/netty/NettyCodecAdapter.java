@@ -72,6 +72,7 @@ final class NettyCodecAdapter {
             com.alibaba.dubbo.remoting.buffer.ChannelBuffer buffer =
                     com.alibaba.dubbo.remoting.buffer.ChannelBuffers.dynamicBuffer(1024);
             //此处url,返回结果一直是第一个接口暴露的url，原因见NettyServer的构造方法，即请求url为DemoServer，此处channel内的url可能为DemoTestService
+            //NettyHandler的channelConnected方法中已经为channel创建了NettyChannel
             NettyChannel channel = NettyChannel.getOrAddChannel(ch, url, handler);
             try {
                 codec.encode(channel, buffer, msg);
@@ -89,8 +90,8 @@ final class NettyCodecAdapter {
 
         /**
          * 接收的消息可能为request或response，codec.decode根据header中的flag，将消息decode为req或res,传给handler
-         * 默认配置第一个handler为MultiMessageHandler=》HeartbeatHandler=》AllChannelHandler=》DecodeHandler=》HeaderExchangeHandler=》dubboProtocol$handler
-         * ***********************处理req res 创建server时载入的*************************|||处理req res由exchanger载入**********||||req才会走到此handler处理rpcInvocation（req中）返回rpcResult（response中）
+         * 默认配置第一个handler为NettyHandler                         =>    MultiMessageHandler=》HeartbeatHandler=》AllChannelHandler=》DecodeHandler=》HeaderExchangeHandler=》dubboProtocol$handler
+         * *******NettyHandler用于管理channel和集成netty 原生handler**|||**处理req res 创建server时载入的******************************|||处理req res由exchanger载入**********||||req才会走到此handler处理rpcInvocation（req中）返回rpcResult（response中）
          */
         @Override
         public void messageReceived(ChannelHandlerContext ctx, MessageEvent event) throws Exception {

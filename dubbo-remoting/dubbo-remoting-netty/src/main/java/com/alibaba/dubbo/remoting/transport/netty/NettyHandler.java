@@ -20,13 +20,8 @@ import com.alibaba.dubbo.common.URL;
 import com.alibaba.dubbo.common.utils.NetUtils;
 import com.alibaba.dubbo.remoting.Channel;
 import com.alibaba.dubbo.remoting.ChannelHandler;
-
 import org.jboss.netty.channel.ChannelHandler.Sharable;
-import org.jboss.netty.channel.ChannelHandlerContext;
-import org.jboss.netty.channel.ChannelStateEvent;
-import org.jboss.netty.channel.ExceptionEvent;
-import org.jboss.netty.channel.MessageEvent;
-import org.jboss.netty.channel.SimpleChannelHandler;
+import org.jboss.netty.channel.*;
 
 import java.net.InetSocketAddress;
 import java.util.Map;
@@ -34,6 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * NettyHandler
+ * 用于管理channel
+ * 用于处理netty原生handler到dubbo定义的handler的映射
  */
 @Sharable
 public class NettyHandler extends SimpleChannelHandler {
@@ -61,6 +58,7 @@ public class NettyHandler extends SimpleChannelHandler {
 
     @Override
     public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+        //NettyChannel中的static ConcurrentMap也会保存所有channel信息，不过其中的key为netty的channel
         NettyChannel channel = NettyChannel.getOrAddChannel(ctx.getChannel(), url, handler);
         try {
             if (channel != null) {

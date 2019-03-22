@@ -26,7 +26,7 @@ import com.alibaba.dubbo.common.extension.SPI;
  * @see com.alibaba.dubbo.remoting.Transporter#connect(com.alibaba.dubbo.common.URL, ChannelHandler)
  */
 @SPI
-public interface ChannelHandler {
+public interface  ChannelHandler {
 
     /**
      * on channel connected.

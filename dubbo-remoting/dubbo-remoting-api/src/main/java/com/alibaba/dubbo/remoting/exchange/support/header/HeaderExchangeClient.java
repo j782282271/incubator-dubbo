@@ -38,7 +38,8 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
- * DefaultMessageClient
+ * 1封装channel为HeaderExchangeChannel，以便发送消息时将消息封装为req发出
+ * 2定时向server发心跳：HeartBeatTask
  */
 public class HeaderExchangeClient implements ExchangeClient {
 

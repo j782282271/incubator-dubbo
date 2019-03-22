@@ -27,6 +27,9 @@ import com.alibaba.dubbo.remoting.transport.dispatcher.WrappedChannelHandler;
 
 import java.util.concurrent.ExecutorService;
 
+/**
+ * 仅仅处理received情况用线程池处理，其他情况交由父类同步处理
+ */
 public class MessageOnlyChannelHandler extends WrappedChannelHandler {
 
     public MessageOnlyChannelHandler(ChannelHandler handler, URL url) {

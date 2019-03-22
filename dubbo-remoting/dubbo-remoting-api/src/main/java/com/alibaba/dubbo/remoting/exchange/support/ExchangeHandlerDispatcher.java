@@ -27,6 +27,7 @@ import com.alibaba.dubbo.remoting.transport.ChannelHandlerDispatcher;
 
 /**
  * ExchangeHandlerDispatcher
+ * 组合了ChannelHandler(ChannelHandlerDispatcher)集合与Replier(ReplierDispatcher)集合的功能
  */
 public class ExchangeHandlerDispatcher implements ExchangeHandler {
 

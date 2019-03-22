@@ -26,6 +26,9 @@ import com.alibaba.dubbo.remoting.exchange.Request;
 
 import java.util.Collection;
 
+/**
+ * 获取所有channel，定时遍历他们发心跳
+ */
 final class HeartBeatTask implements Runnable {
 
     private static final Logger logger = LoggerFactory.getLogger(HeartBeatTask.class);

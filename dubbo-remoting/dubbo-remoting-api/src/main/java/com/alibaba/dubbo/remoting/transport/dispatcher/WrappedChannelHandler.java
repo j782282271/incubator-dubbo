@@ -32,6 +32,11 @@ import com.alibaba.dubbo.remoting.transport.ChannelHandlerDelegate;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * 整个dispatcher包都是用来包装代理handler的，包装的过程中增加新的功能，如异步
+ * 1创建线程池，区分consumer和provider他俩线程池默认配置大小不同
+ * 2将线程池存入DataStore中的map中
+ */
 public class WrappedChannelHandler implements ChannelHandlerDelegate {
 
     protected static final Logger logger = LoggerFactory.getLogger(WrappedChannelHandler.class);

@@ -43,6 +43,7 @@ import java.io.InputStream;
 
 /**
  * ExchangeCodec.
+ * 编解码res req，但是很多方法被dubboCodec覆盖了
  */
 public class ExchangeCodec extends TelnetCodec {
 

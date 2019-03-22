@@ -42,7 +42,15 @@ import java.util.concurrent.locks.ReentrantLock;
 /**
  * AbstractClient
  * 1重连时间配置
- * 2
+ * 2控制allhandler的executor重置pool size功能
+ * 3warp handler功能
+ * 4连接失败不断重试连接
+ * 5getRemoteAddress
+ * 6getLocalAddress
+ * 7根据自身channel判断isConnected
+ * 8从channel获取attr,向channel放入attr
+ * 9向channel发msg
+ * 10disconnect、close
  */
 public abstract class AbstractClient extends AbstractEndpoint implements Client {
 
@@ -64,7 +72,9 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
     // the last successed connected time
     private long lastConnectedTime = System.currentTimeMillis();
 
-
+    /**
+     * url为provider的url，含有provider的ip:port
+     */
     public AbstractClient(URL url, ChannelHandler handler) throws RemotingException {
         super(url, handler);
 
@@ -111,6 +121,7 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
     }
 
     protected static ChannelHandler wrapChannelHandler(URL url, ChannelHandler handler) {
+        //ConnectionOrderedChannelHandler会用到
         url = ExecutorUtil.setThreadName(url, CLIENT_THREAD_POOL_NAME);
         url = url.addParameterIfAbsent(Constants.THREADPOOL_KEY, Constants.DEFAULT_CLIENT_THREADPOOL);
         return ChannelHandlers.wrap(handler, url);
@@ -119,6 +130,7 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
     /**
      * @param url
      * @return 0-false
+     * 获取重连时间间隔，如果连接失败则重连
      */
     private static int getReconnectParam(URL url) {
         int reconnect;
@@ -142,6 +154,7 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
 
     /**
      * init reconnect thread
+     * 不管是否已连接成功，都会不断执行定时任务，任务中如果发现已连接，则不连接，如果没连接的不断重试连接
      */
     private synchronized void initConnectStatusCheckCommand() {
         //reconnect=false to close reconnect
@@ -176,6 +189,9 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
         }
     }
 
+    /**
+     * 停止重连线程池
+     */
     private synchronized void destroyConnectStatusCheckCommand() {
         try {
             if (reconnectExecutorFuture != null && !reconnectExecutorFuture.isDone()) {
@@ -191,10 +207,16 @@ public abstract class AbstractClient extends AbstractEndpoint implements Client 
         return Executors.newCachedThreadPool(new NamedThreadFactory(CLIENT_THREAD_POOL_NAME + CLIENT_THREAD_POOL_ID.incrementAndGet() + "-" + getUrl().getAddress(), true));
     }
 
+    /**
+     * 从url中获取待连接的地址
+     */
     public InetSocketAddress getConnectAddress() {
         return new InetSocketAddress(NetUtils.filterLocalHost(getUrl().getHost()), getUrl().getPort());
     }
 
+    /**
+     * 从channel中获取远端地址，如果没有则从url中获取
+     */
     @Override
     public InetSocketAddress getRemoteAddress() {
         Channel channel = getChannel();

@@ -30,11 +30,7 @@ import com.alibaba.dubbo.remoting.transport.dispatcher.ChannelEventRunnable;
 import com.alibaba.dubbo.remoting.transport.dispatcher.ChannelEventRunnable.ChannelState;
 import com.alibaba.dubbo.remoting.transport.dispatcher.WrappedChannelHandler;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 public class ConnectionOrderedChannelHandler extends WrappedChannelHandler {
 
@@ -44,6 +40,7 @@ public class ConnectionOrderedChannelHandler extends WrappedChannelHandler {
     public ConnectionOrderedChannelHandler(ChannelHandler handler, URL url) {
         super(handler, url);
         String threadName = url.getParameter(Constants.THREAD_NAME_KEY, Constants.DEFAULT_THREAD_NAME);
+        //注意LinkedBlockingQueue可以保证服务端的任务按照时间顺序的保存在LinkedBlockingQueue中，没有并发问题
         connectionExecutor = new ThreadPoolExecutor(1, 1,
                 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<Runnable>(url.getPositiveParameter(Constants.CONNECT_QUEUE_CAPACITY, Integer.MAX_VALUE)),
