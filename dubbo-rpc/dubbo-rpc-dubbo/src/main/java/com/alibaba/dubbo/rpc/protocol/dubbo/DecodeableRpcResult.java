@@ -37,6 +37,9 @@ import java.io.OutputStream;
 import java.lang.reflect.Type;
 import java.util.Map;
 
+/**
+ * 从输入流(有序列化信息)decode result
+ */
 public class DecodeableRpcResult extends RpcResult implements Codec, Decodeable {
 
     private static final Logger log = LoggerFactory.getLogger(DecodeableRpcResult.class);
@@ -75,14 +78,13 @@ public class DecodeableRpcResult extends RpcResult implements Codec, Decodeable 
 
     /**
      * 从input中反序列化出数据，该值即为方法调用返回值，赋值给result
-     * 区分exception、是否含有attachment，如果含有attach,将其赋值给this.attachments
-     *
-     * */
+     * 根据flag区分exception、是否含有attachment，如果含有attach,将其赋值给this.attachments
+     */
     @Override
     public Object decode(Channel channel, InputStream input) throws IOException {
         ObjectInput in = CodecSupport.getSerialization(channel.getUrl(), serializationType)
                 .deserialize(channel.getUrl(), input);
-        
+
         byte flag = in.readByte();
         switch (flag) {
             case DubboCodec.RESPONSE_NULL_VALUE:

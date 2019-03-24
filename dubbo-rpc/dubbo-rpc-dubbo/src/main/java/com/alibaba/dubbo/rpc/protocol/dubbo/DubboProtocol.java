@@ -28,32 +28,21 @@ import com.alibaba.dubbo.common.utils.StringUtils;
 import com.alibaba.dubbo.remoting.Channel;
 import com.alibaba.dubbo.remoting.RemotingException;
 import com.alibaba.dubbo.remoting.Transporter;
-import com.alibaba.dubbo.remoting.exchange.ExchangeChannel;
-import com.alibaba.dubbo.remoting.exchange.ExchangeClient;
-import com.alibaba.dubbo.remoting.exchange.ExchangeHandler;
-import com.alibaba.dubbo.remoting.exchange.ExchangeServer;
-import com.alibaba.dubbo.remoting.exchange.Exchangers;
+import com.alibaba.dubbo.remoting.exchange.*;
 import com.alibaba.dubbo.remoting.exchange.support.ExchangeHandlerAdapter;
-import com.alibaba.dubbo.rpc.Exporter;
-import com.alibaba.dubbo.rpc.Invocation;
-import com.alibaba.dubbo.rpc.Invoker;
-import com.alibaba.dubbo.rpc.Protocol;
-import com.alibaba.dubbo.rpc.RpcContext;
-import com.alibaba.dubbo.rpc.RpcException;
-import com.alibaba.dubbo.rpc.RpcInvocation;
+import com.alibaba.dubbo.rpc.*;
 import com.alibaba.dubbo.rpc.protocol.AbstractProtocol;
 
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
  * dubbo protocol support.
+ * export for provider,创建server
+ * refer for consumer，创建DubboInvoker，创建client用于构造DubboInvoker
+ * handle:作为provider handle consumer请求
  */
 public class DubboProtocol extends AbstractProtocol {
 
@@ -62,14 +51,19 @@ public class DubboProtocol extends AbstractProtocol {
     public static final int DEFAULT_PORT = 20880;
     private static final String IS_CALLBACK_SERVICE_INVOKE = "_isCallBackServiceInvoke";
     private static DubboProtocol INSTANCE;
+    //key=192.168.0.5:20880,for provider
     private final Map<String, ExchangeServer> serverMap = new ConcurrentHashMap<String, ExchangeServer>(); // <host:port,Exchanger>
+    //存储client缓存，可供重用
     private final Map<String, ReferenceCountExchangeClient> referenceClientMap = new ConcurrentHashMap<String, ReferenceCountExchangeClient>(); // <host:port,Exchanger>
     private final ConcurrentMap<String, LazyConnectExchangeClient> ghostClientMap = new ConcurrentHashMap<String, LazyConnectExchangeClient>();
+    //创建client用于避免重复重建需要同步
     private final ConcurrentMap<String, Object> locks = new ConcurrentHashMap<String, Object>();
+    //序列化优化器
     private final Set<String> optimizers = new ConcurrentHashSet<String>();
     //consumer side export a stub service for dispatching event
-    //servicekey-stubmethods
+    //servicekey(com.alibaba.dubbo.demo.DemoTestService)=>stubmethods
     private final ConcurrentMap<String, String> stubServiceMethodsMap = new ConcurrentHashMap<String, String>();
+    //继承了telnetHandler
     private ExchangeHandler requestHandler = new ExchangeHandlerAdapter() {
 
         @Override
@@ -184,13 +178,16 @@ public class DubboProtocol extends AbstractProtocol {
     }
 
     private boolean isClientSide(Channel channel) {
-        InetSocketAddress address = channel.getRemoteAddress();
-        URL url = channel.getUrl();
+        InetSocketAddress address = channel.getRemoteAddress();//如果为consumer则，remote为服务端的ip+port,否则为consumer的ip+port
+        URL url = channel.getUrl();//含有服务端的ip+port
         return url.getPort() == address.getPort() &&
                 NetUtils.filterLocalHost(channel.getUrl().getIp())
                         .equals(NetUtils.filterLocalHost(address.getAddress().getHostAddress()));
     }
 
+    /**
+     * 从exporter获取exporter，顺便判断一下是不是consumer端自己的stubExporter
+     */
     Invoker<?> getInvoker(Channel channel, Invocation inv) throws RemotingException {
         boolean isCallBackServiceInvoke = false;
         boolean isStubServiceInvoke = false;
@@ -198,6 +195,7 @@ public class DubboProtocol extends AbstractProtocol {
         String path = inv.getAttachments().get(Constants.PATH_KEY);
         // if it's callback service on client side
         isStubServiceInvoke = Boolean.TRUE.toString().equals(inv.getAttachments().get(Constants.STUB_EVENT_KEY));
+        //见：StubProxyFactoryWrapper.getInvoker，如果consumer定义了stub，则会端注exporter，此处会根据是否是stub处理 for consumer
         if (isStubServiceInvoke) {
             port = channel.getRemoteAddress().getPort();
         }
@@ -207,6 +205,7 @@ public class DubboProtocol extends AbstractProtocol {
             path = inv.getAttachments().get(Constants.PATH_KEY) + "." + inv.getAttachments().get(Constants.CALLBACK_SERVICE_KEY);
             inv.getAttachments().put(IS_CALLBACK_SERVICE_INVOKE, Boolean.TRUE.toString());
         }
+        //serviceKey=com.alibaba.dubbo.demo.DemoService:20880
         String serviceKey = serviceKey(port, path, inv.getAttachments().get(Constants.VERSION_KEY), inv.getAttachments().get(Constants.GROUP_KEY));
 
         DubboExporter<?> exporter = (DubboExporter<?>) exporterMap.get(serviceKey);
@@ -228,10 +227,12 @@ public class DubboProtocol extends AbstractProtocol {
 
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
+        //dubbo://192.168.0.5:20880/com.alibaba.dubbo.demo.DemoTestService?anyhost=true&application=demo-provider&bean.name=com.alibaba.dubbo.demo.DemoTestService&bind.ip=192.168.0.5&bind.port=20880&dubbo=2.0.2&generic=false&interface=com.alibaba.dubbo.demo.DemoTestService&methods=speak&pid=5704&side=provider&timestamp=1553414265822
         URL url = invoker.getUrl();
 
-        // export service.
+        //key=com.alibaba.dubbo.demo.DemoTestService:20880
         String key = serviceKey(url);
+        //父类AbstractProtocol的exporterMap放入exporter
         DubboExporter<T> exporter = new DubboExporter<T>(invoker, key, exporterMap);
         exporterMap.put(key, exporter);
 
@@ -239,6 +240,7 @@ public class DubboProtocol extends AbstractProtocol {
         Boolean isStubSupportEvent = url.getParameter(Constants.STUB_EVENT_KEY, Constants.DEFAULT_STUB_EVENT);
         Boolean isCallbackservice = url.getParameter(Constants.IS_CALLBACK_SERVICE, false);
         if (isStubSupportEvent && !isCallbackservice) {
+            //如果配置了STUB_EVENT_KEY，则存储STUB_EVENT_METHODS_KEY到this.stubServiceMethodsMap中
             String stubServiceMethods = url.getParameter(Constants.STUB_EVENT_METHODS_KEY);
             if (stubServiceMethods == null || stubServiceMethods.length() == 0) {
                 if (logger.isWarnEnabled()) {
@@ -301,6 +303,14 @@ public class DubboProtocol extends AbstractProtocol {
         return server;
     }
 
+    /**
+     * 将optimizer中存储的的class放入SerializableClassRegistry中
+     * 1从url中获取optimizer，
+     * 2将optimizer变为class（为SerializationOptimizer的子类）
+     * 3创建optimizer实例
+     * 4optimizer实例getSerializableClasses，得到Collection<Class>
+     * 5将collection中的所有class注册到SerializableClassRegistry中
+     */
     private void optimizeSerialization(URL url) throws RpcException {
         String className = url.getParameter(Constants.OPTIMIZER_KEY, "");
         if (StringUtils.isEmpty(className) || optimizers.contains(className)) {

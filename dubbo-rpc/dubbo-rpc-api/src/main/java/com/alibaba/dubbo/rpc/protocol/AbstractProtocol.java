@@ -39,10 +39,13 @@ public abstract class AbstractProtocol implements Protocol {
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
-    //每个协议都会记录自己的exporter
+    //每个协议都会记录自己的exporter，for provider
     protected final Map<String, Exporter<?>> exporterMap = new ConcurrentHashMap<String, Exporter<?>>();
 
     //TODO SOFEREFENCE
+    /**
+     * dubboProtocol的refer（for consumer）中获取到invoker，会add到invokers中
+     */
     protected final Set<Invoker<?>> invokers = new ConcurrentHashSet<Invoker<?>>();
 
     protected static String serviceKey(URL url) {

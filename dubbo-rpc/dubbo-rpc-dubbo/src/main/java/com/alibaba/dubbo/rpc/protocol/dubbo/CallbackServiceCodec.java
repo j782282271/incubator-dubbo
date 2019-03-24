@@ -26,11 +26,7 @@ import com.alibaba.dubbo.common.utils.ConcurrentHashSet;
 import com.alibaba.dubbo.common.utils.StringUtils;
 import com.alibaba.dubbo.remoting.Channel;
 import com.alibaba.dubbo.remoting.RemotingException;
-import com.alibaba.dubbo.rpc.Exporter;
-import com.alibaba.dubbo.rpc.Invocation;
-import com.alibaba.dubbo.rpc.Invoker;
-import com.alibaba.dubbo.rpc.ProxyFactory;
-import com.alibaba.dubbo.rpc.RpcInvocation;
+import com.alibaba.dubbo.rpc.*;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -68,13 +64,16 @@ class CallbackServiceCodec {
 
     /**
      * export or unexport callback service on client side
+     * 创建IS_CALLBACK_SERVICE consumer端提供服务,如果export==true，则暴露consumer端服务，并将服务exporter放在channel的attachment上
+     * 如果为false则关闭服务
      *
      * @param channel
      * @param url
-     * @param clazz
-     * @param inst
-     * @param export
-     * @throws IOException
+     * @param clazz   参数class
+     * @param inst    参数
+     * @param export  暴露服务还是destory服务
+     * @throws IOException d
+     *                     *
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static String exportOrunexportCallbackService(Channel channel, URL url, Class clazz, Object inst, Boolean export) throws IOException {
@@ -127,8 +126,7 @@ class CallbackServiceCodec {
 
     /**
      * refer or destroy callback service on server side
-     *
-     * @param url
+     * provider refer consumer的exporter
      */
     @SuppressWarnings("unchecked")
     private static Object referOrdestroyCallbackService(Channel channel, URL url, Class<?> clazz, Invocation inv, int instid, boolean isRefer) {
@@ -138,7 +136,7 @@ class CallbackServiceCodec {
         proxy = channel.getAttribute(proxyCacheKey);
         String countkey = getServerSideCountKey(channel, clazz.getName());
         if (isRefer) {
-            if (proxy == null) {
+            if (proxy == null) {//为null则创建
                 URL referurl = URL.valueOf("callback://" + url.getAddress() + "/" + clazz.getName() + "?" + Constants.INTERFACE_KEY + "=" + clazz.getName());
                 referurl = referurl.addParametersIfAbsent(url.getParameters()).removeParameter(Constants.METHODS_KEY);
                 if (!isInstancesOverLimit(channel, referurl, clazz.getName(), instid, true)) {

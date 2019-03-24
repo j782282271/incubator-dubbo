@@ -32,6 +32,7 @@ import java.io.OutputStream;
 
 /**
  * TransportCodec
+ * 简单的encode decode、不考虑header信息
  */
 public class TransportCodec extends AbstractCodec {
 

@@ -30,6 +30,8 @@ import java.net.InetSocketAddress;
 
 /**
  * AbstractCodec
+ * 检查数据大小是否合法 static功能
+ * 判断是否是client static功能
  */
 public abstract class AbstractCodec implements Codec2 {
 

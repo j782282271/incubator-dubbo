@@ -38,6 +38,13 @@ import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * DefaultFuture.
+ * 1记录全局所有channel、批量删除channel功能
+ * 2按照id索引所有DefaultFuture
+ * 3定时清理所有超时的DefaultFuture
+ * 4记录id,request,channel,timeout
+ * 5当有response时，将response放入this（doReceived(res)）
+ * 6get返回值的时候回await在done这个Condition上
+ * 7记录callback，当done之后，调用callback
  */
 public class DefaultFuture implements ResponseFuture {
 

@@ -43,6 +43,8 @@ import static com.alibaba.dubbo.rpc.protocol.dubbo.CallbackServiceCodec.encodeIn
 
 /**
  * Dubbo codec.
+ * encode request/response，header由ExchangeCodec处理
+ * encode body为request/response，header由ExchangeCodec处理
  */
 public class DubboCodec extends ExchangeCodec implements Codec2 {
 
@@ -65,10 +67,8 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
      * decodeBody，区分并创建request、Response并返回
      *
      * @param is 中含有len信息，见父类decode方法，创建is时已经指定了len
-     * @return Response，Response的result为DecodeableRpcResult，
-     *          DecodeableRpcResult的result为真正的返回值，exception为异常返回值，attach为其它附加参数
      * @return Request，Request的data为DecodeableRpcInvocation，
-     *          DecodeableRpcInvocation的result为真正的返回值，exception为异常返回值，attach为其它附加参数
+     * DecodeableRpcInvocation的result为真正的返回值，exception为异常返回值，attach为其它附加参数
      */
     @Override
     protected Object decodeBody(Channel channel, InputStream is, byte[] header) throws IOException {

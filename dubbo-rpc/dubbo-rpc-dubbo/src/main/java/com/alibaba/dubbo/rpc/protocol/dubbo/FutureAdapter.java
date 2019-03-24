@@ -29,6 +29,7 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * FutureAdapter
+ * 简单封装了ResponseFuture，封装了exception
  */
 public class FutureAdapter<V> implements Future<V> {
 

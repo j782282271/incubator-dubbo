@@ -22,12 +22,7 @@ import com.alibaba.dubbo.common.logger.Logger;
 import com.alibaba.dubbo.common.logger.LoggerFactory;
 import com.alibaba.dubbo.common.utils.ConcurrentHashSet;
 import com.alibaba.dubbo.remoting.Channel;
-import com.alibaba.dubbo.rpc.Filter;
-import com.alibaba.dubbo.rpc.Invocation;
-import com.alibaba.dubbo.rpc.Invoker;
-import com.alibaba.dubbo.rpc.Result;
-import com.alibaba.dubbo.rpc.RpcContext;
-import com.alibaba.dubbo.rpc.RpcException;
+import com.alibaba.dubbo.rpc.*;
 import com.alibaba.fastjson.JSON;
 
 import java.util.ArrayList;
@@ -50,6 +45,10 @@ public class TraceFilter implements Filter {
 
     private static final ConcurrentMap<String, Set<Channel>> tracers = new ConcurrentHashMap<String, Set<Channel>>();
 
+    /**
+     * TraceTelnetHandler会用到它，
+     * max是client发来的要监听的最大次数
+     */
     public static void addTracer(Class<?> type, String method, Channel channel, int max) {
         channel.setAttribute(TRACE_MAX, max);
         channel.setAttribute(TRACE_COUNT, new AtomicInteger());
@@ -72,6 +71,12 @@ public class TraceFilter implements Filter {
         }
     }
 
+    /**
+     * TraceTelnetHandler会用到它，
+     * max是client发来的要监听的最大次数
+     * 遍历每个channel，查看count并+1，对比是否大于max，小于max就向client发送耗时信息
+     * 作用就像ping 100，会ping 100次，server会向client发送100次ping耗时情况
+     */
     @Override
     public Result invoke(Invoker<?> invoker, Invocation invocation) throws RpcException {
         long start = System.currentTimeMillis();

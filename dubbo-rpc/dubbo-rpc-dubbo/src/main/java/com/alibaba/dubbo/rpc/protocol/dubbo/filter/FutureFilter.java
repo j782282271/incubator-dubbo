@@ -22,13 +22,7 @@ import com.alibaba.dubbo.common.logger.Logger;
 import com.alibaba.dubbo.common.logger.LoggerFactory;
 import com.alibaba.dubbo.remoting.exchange.ResponseCallback;
 import com.alibaba.dubbo.remoting.exchange.ResponseFuture;
-import com.alibaba.dubbo.rpc.Filter;
-import com.alibaba.dubbo.rpc.Invocation;
-import com.alibaba.dubbo.rpc.Invoker;
-import com.alibaba.dubbo.rpc.Result;
-import com.alibaba.dubbo.rpc.RpcContext;
-import com.alibaba.dubbo.rpc.RpcException;
-import com.alibaba.dubbo.rpc.StaticContext;
+import com.alibaba.dubbo.rpc.*;
 import com.alibaba.dubbo.rpc.protocol.dubbo.FutureAdapter;
 import com.alibaba.dubbo.rpc.support.RpcUtils;
 
@@ -71,7 +65,9 @@ public class FutureFilter implements Filter {
     private void asyncCallback(final Invoker<?> invoker, final Invocation invocation) {
         Future<?> f = RpcContext.getContext().getFuture();
         if (f instanceof FutureAdapter) {
+            //见DubboInvoker的doInvoke方法，如果是异步，执行完会put到 RpcContext.getContext()中FutureAdapter
             ResponseFuture future = ((FutureAdapter<?>) f).getFuture();
+            //设置callback
             future.setCallback(new ResponseCallback() {
                 @Override
                 public void done(Object rpcResult) {
@@ -100,6 +96,9 @@ public class FutureFilter implements Filter {
         }
     }
 
+    /**
+     * 执行invoke之前，调用指定的方法，相当于pre
+     */
     private void fireInvokeCallback(final Invoker<?> invoker, final Invocation invocation) {
         final Method onInvokeMethod = (Method) StaticContext.getSystemContext().get(StaticContext.getKey(invoker.getUrl(), invocation.getMethodName(), Constants.ON_INVOKE_METHOD_KEY));
         final Object onInvokeInst = StaticContext.getSystemContext().get(StaticContext.getKey(invoker.getUrl(), invocation.getMethodName(), Constants.ON_INVOKE_INSTANCE_KEY));
@@ -124,6 +123,9 @@ public class FutureFilter implements Filter {
         }
     }
 
+    /**
+     * 调用正常返回后，执行配置的方法
+     */
     private void fireReturnCallback(final Invoker<?> invoker, final Invocation invocation, final Object result) {
         final Method onReturnMethod = (Method) StaticContext.getSystemContext().get(StaticContext.getKey(invoker.getUrl(), invocation.getMethodName(), Constants.ON_RETURN_METHOD_KEY));
         final Object onReturnInst = StaticContext.getSystemContext().get(StaticContext.getKey(invoker.getUrl(), invocation.getMethodName(), Constants.ON_RETURN_INSTANCE_KEY));
@@ -165,6 +167,9 @@ public class FutureFilter implements Filter {
         }
     }
 
+    /**
+     * 调用抛异常，执行配置的抛异常方法
+     */
     private void fireThrowCallback(final Invoker<?> invoker, final Invocation invocation, final Throwable exception) {
         final Method onthrowMethod = (Method) StaticContext.getSystemContext().get(StaticContext.getKey(invoker.getUrl(), invocation.getMethodName(), Constants.ON_THROW_METHOD_KEY));
         final Object onthrowInst = StaticContext.getSystemContext().get(StaticContext.getKey(invoker.getUrl(), invocation.getMethodName(), Constants.ON_THROW_INSTANCE_KEY));
