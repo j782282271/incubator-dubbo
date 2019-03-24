@@ -17,16 +17,15 @@
 package com.alibaba.dubbo.rpc.proxy;
 
 import com.alibaba.dubbo.common.URL;
-import com.alibaba.dubbo.rpc.Invocation;
-import com.alibaba.dubbo.rpc.Invoker;
-import com.alibaba.dubbo.rpc.Result;
-import com.alibaba.dubbo.rpc.RpcException;
-import com.alibaba.dubbo.rpc.RpcResult;
+import com.alibaba.dubbo.rpc.*;
 
 import java.lang.reflect.InvocationTargetException;
 
 /**
  * InvokerWrapper
+ * provider端的invoker继承自此类，consumer端继承自AbstractInvoker类
+ * JavassistProxyFactory的getInvoker方法直接new此类
+ * 封装Result，调用doInvoke，返回值封装为Result，返回
  */
 public abstract class AbstractProxyInvoker<T> implements Invoker<T> {
 

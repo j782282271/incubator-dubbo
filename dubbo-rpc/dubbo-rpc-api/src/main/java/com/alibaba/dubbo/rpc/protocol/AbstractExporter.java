@@ -23,6 +23,8 @@ import com.alibaba.dubbo.rpc.Invoker;
 
 /**
  * AbstractExporter.
+ * 存储invoker
+ * destory方法
  */
 public abstract class AbstractExporter<T> implements Exporter<T> {
 

@@ -131,6 +131,9 @@ public class RpcStatus {
         endCount(getStatus(url, methodName), elapsed, succeeded);
     }
 
+    /**
+     * elapsed耗时
+     */
     private static void endCount(RpcStatus status, long elapsed, boolean succeeded) {
         status.active.decrementAndGet();
         status.total.incrementAndGet();
@@ -319,7 +322,7 @@ public class RpcStatus {
      * @return thread number semaphore
      */
     public Semaphore getSemaphore(int maxThreadNum) {
-        if(maxThreadNum <= 0) {
+        if (maxThreadNum <= 0) {
             return null;
         }
 

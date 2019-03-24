@@ -20,18 +20,16 @@ package com.alibaba.dubbo.rpc.protocol;
 import com.alibaba.dubbo.common.Constants;
 import com.alibaba.dubbo.common.URL;
 import com.alibaba.dubbo.common.utils.NetUtils;
-import com.alibaba.dubbo.rpc.Exporter;
-import com.alibaba.dubbo.rpc.Invocation;
-import com.alibaba.dubbo.rpc.Invoker;
-import com.alibaba.dubbo.rpc.ProxyFactory;
-import com.alibaba.dubbo.rpc.Result;
-import com.alibaba.dubbo.rpc.RpcException;
+import com.alibaba.dubbo.rpc.*;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * AbstractProxyProtocol
+ * HessianProtocol、HttpProtocol、RestProtocol等非长连接的protocol继承自此类
+ * export方法设置：包装下层返回的exporter,添加功能：unexport执行回调Runnable方法
+ * refer时方法设置：包装下层返回的invoker,添加功能：调用invoker.invoke方法执行完毕后对exception进行封装为RpcException
  */
 public abstract class AbstractProxyProtocol extends AbstractProtocol {
 
@@ -60,6 +58,10 @@ public abstract class AbstractProxyProtocol extends AbstractProtocol {
         this.proxyFactory = proxyFactory;
     }
 
+    /**
+     * 调用doExport真正的export，返回Runnable，
+     * 执行unexport之后调用该Runnable
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <T> Exporter<T> export(final Invoker<T> invoker) throws RpcException {

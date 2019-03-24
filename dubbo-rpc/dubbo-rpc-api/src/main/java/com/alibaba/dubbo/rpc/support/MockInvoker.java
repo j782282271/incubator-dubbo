@@ -23,13 +23,7 @@ import com.alibaba.dubbo.common.utils.ConfigUtils;
 import com.alibaba.dubbo.common.utils.PojoUtils;
 import com.alibaba.dubbo.common.utils.ReflectUtils;
 import com.alibaba.dubbo.common.utils.StringUtils;
-import com.alibaba.dubbo.rpc.Invocation;
-import com.alibaba.dubbo.rpc.Invoker;
-import com.alibaba.dubbo.rpc.ProxyFactory;
-import com.alibaba.dubbo.rpc.Result;
-import com.alibaba.dubbo.rpc.RpcException;
-import com.alibaba.dubbo.rpc.RpcInvocation;
-import com.alibaba.dubbo.rpc.RpcResult;
+import com.alibaba.dubbo.rpc.*;
 import com.alibaba.fastjson.JSON;
 
 import java.lang.reflect.Constructor;
@@ -38,6 +32,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * 检查invocation，如果使用mock则执行mock逻辑，如果没有mock则抛异常：
+ * 1如果mock仅是简单的return则return
+ * 2如果mock为复杂类（继承自真正的调用的接口），创建mock类对象为该对象创建invoker，执行其invoke方法
+ */
 final public class MockInvoker<T> implements Invoker<T> {
     private final static ProxyFactory proxyFactory = ExtensionLoader.getExtensionLoader(ProxyFactory.class).getAdaptiveExtension();
     private final static Map<String, Invoker<?>> mocks = new ConcurrentHashMap<String, Invoker<?>>();
@@ -53,6 +52,10 @@ final public class MockInvoker<T> implements Invoker<T> {
         return parseMockValue(mock, null);
     }
 
+    /**
+     * 解析mock 返回值，return true，则parseMockValue返回boolean true
+     * 如果按照returnTypes要求字段去解析返回值，returnTypes为空则返回j解析出来的ava的基本类型或者java封装好的类型
+     */
     public static Object parseMockValue(String mock, Type[] returnTypes) throws Exception {
         Object value = null;
         if ("empty".equals(mock)) {
@@ -83,6 +86,14 @@ final public class MockInvoker<T> implements Invoker<T> {
         return value;
     }
 
+    /**
+     * 1取出invocation中的mock信息，
+     * 2是return a,则直接return a,不再调用下层invoker
+     * 3是throw 则throw
+     * 4以上都不是，则调用下层invoker,下层invoker由mock值确定，如果是default则找到DemoServiceMock（以调用方法：DemoService.sayHello为例）
+     * 以该类作为实际调用的接口类，如果mock值为为类AbcMock，则创建AbcMock实例，调用其sayHello方法
+     * 5缓存步骤4创建的invoker到this.mocks中
+     */
     @Override
     public Result invoke(Invocation invocation) throws RpcException {
         String mock = getUrl().getParameter(invocation.getMethodName() + "." + Constants.MOCK_KEY);
@@ -162,6 +173,11 @@ final public class MockInvoker<T> implements Invoker<T> {
         return invoker;
     }
 
+    /**
+     * default=》DemoServiceMock
+     * 实例化mockService对应的mock值
+     * mockService必须继承自serviceType，即AbcMock必须继承自DemoService
+     */
     @SuppressWarnings("unchecked")
     public static Object getMockObject(String mockService, Class serviceType) {
         if (ConfigUtils.isDefault(mockService)) {
@@ -186,7 +202,7 @@ final public class MockInvoker<T> implements Invoker<T> {
 
     /**
      * Normalize mock string:
-     *
+     * <p>
      * <ol>
      * <li>return => return null</li>
      * <li>fail => default</li>

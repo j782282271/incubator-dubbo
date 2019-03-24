@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * AbstractClusterInvoker
- *
+ * consumer端会继承自此类,在cluster包下
  */
 public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
 

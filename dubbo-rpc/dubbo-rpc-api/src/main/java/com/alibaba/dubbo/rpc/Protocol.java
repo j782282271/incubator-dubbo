@@ -22,6 +22,8 @@ import com.alibaba.dubbo.common.extension.SPI;
 
 /**
  * Protocol. (API/SPI, Singleton, ThreadSafe)
+ * 1将invoker变为exporter for provider
+ * 2将class变为invoker for consumer
  */
 @SPI("dubbo")
 public interface Protocol {
@@ -45,6 +47,7 @@ public interface Protocol {
      * @param invoker Service invoker
      * @return exporter reference for exported service, useful for unexport the service later
      * @throws RpcException thrown when error occurs during export the service, for example: port is occupied
+     *                      provider先通过ProxyFactory.getInvoker创建invoker,在调用此方法，传入invoker，暴露exporter
      */
     @Adaptive
     <T> Exporter<T> export(Invoker<T> invoker) throws RpcException;
@@ -63,6 +66,7 @@ public interface Protocol {
      * @param url  URL address for the remote service
      * @return invoker service's local proxy
      * @throws RpcException when there's any error while connecting to the service provider
+     *                      consumer调用此方法获取invoker，再调用getInvoker.getProxy传入invoker创建代理类
      */
     @Adaptive
     <T> Invoker<T> refer(Class<T> type, URL url) throws RpcException;

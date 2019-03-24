@@ -26,6 +26,9 @@ import com.alibaba.dubbo.rpc.service.GenericService;
 
 /**
  * AbstractProxyFactory
+ * 获取所有需要实现的接口interfaces，并调用getProxy(invoker,interfaces)
+ * 仅仅抽象了getProxy，for consumer
+ * getInvoker没有封装，for provider
  */
 public abstract class AbstractProxyFactory implements ProxyFactory {
 
@@ -34,6 +37,13 @@ public abstract class AbstractProxyFactory implements ProxyFactory {
         return getProxy(invoker, false);
     }
 
+    /**
+     * invoker.getUrl().getParameter("interfaces")中存储了要实现的接口
+     * invoker.getInterface();也存了要实现的接口
+     * 另外再加上两个接口EchoService、GenericService
+     * 得到以上所有接口
+     * 调用getProxy(invoker, interfaces)，它由子类实现
+     */
     @Override
     public <T> T getProxy(Invoker<T> invoker, boolean generic) throws RpcException {
         //根据invoker找到接口名
