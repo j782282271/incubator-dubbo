@@ -29,6 +29,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 
+/**
+ * 封装了dubbo ChildListener到zkClient要求的listener(TargetChildListener,zkclient与curator不同所以需要泛型)的映射
+ */
 public abstract class AbstractZookeeperClient<TargetChildListener> implements ZookeeperClient {
 
     protected static final Logger logger = LoggerFactory.getLogger(AbstractZookeeperClient.class);
@@ -38,7 +41,8 @@ public abstract class AbstractZookeeperClient<TargetChildListener> implements Zo
     private final Set<StateListener> stateListeners = new CopyOnWriteArraySet<StateListener>();
 
     //state变化通知listener，state变化是指：与zk的连接状况，不是某个path的变化
-    //ChildListener ali封装的listener,TargetChildListener:zkClient要求的listener
+    //ChildListener dubbo封装的listener
+    //TargetChildListener:zkClient要求的listener
     private final ConcurrentMap<String/**path*/, ConcurrentMap<ChildListener, TargetChildListener>> childListeners = new ConcurrentHashMap<String, ConcurrentMap<ChildListener, TargetChildListener>>();
 
     private volatile boolean closed = false;
@@ -112,7 +116,7 @@ public abstract class AbstractZookeeperClient<TargetChildListener> implements Zo
 
     /**
      * state变化通知listener，state变化是指：与zk的连接状况，不是某个path的变化
-     * */
+     */
     protected void stateChanged(int state) {
         for (StateListener sessionListener : getSessionListeners()) {
             sessionListener.stateChanged(state);

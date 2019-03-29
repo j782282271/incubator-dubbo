@@ -253,6 +253,9 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
     // TODO: 2017/8/31 FIXME The thread pool should be used to refresh the address, otherwise the task may be accumulated.
     private void refreshInvoker(List<URL> invokerUrls) {
         //provider含有一个empty的协议，则禁止使用此类获取invokers
+        //与NotifyListener.notify说明对应
+        //与ZookeeperRegistry.doSubscribe方法中187行左右toUrlsWithEmpty对应，如果没有provider会传empty协议：
+        //ZookeeperRegistry.this.notify(url, listener, toUrlsWithEmpty(url, parentPath, currentChilds));
         if (invokerUrls != null && invokerUrls.size() == 1 && invokerUrls.get(0) != null
                 && Constants.EMPTY_PROTOCOL.equals(invokerUrls.get(0).getProtocol())) {
             this.forbidden = true; // Forbid to access

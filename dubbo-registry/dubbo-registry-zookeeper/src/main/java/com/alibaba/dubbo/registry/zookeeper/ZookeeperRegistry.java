@@ -38,6 +38,7 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * ZookeeperRegistry
+ * 实现接口Registry，底层使用zkClient支持
  */
 public class ZookeeperRegistry extends FailbackRegistry {
 
@@ -183,6 +184,8 @@ public class ZookeeperRegistry extends FailbackRegistry {
                         listeners.putIfAbsent(listener, new ChildListener() {
                             @Override
                             public void childChanged(String parentPath, List<String> currentChilds) {
+                                //toUrlsWithEmpty与RegistryDirectory.refreshInvoker第一行对应
+                                //与RegistryDirectory.toConfigurators大概136行对应： if (Constants.EMPTY_PROTOCOL.equals(url.getProtocol())) {
                                 ZookeeperRegistry.this.notify(url, listener, toUrlsWithEmpty(url, parentPath, currentChilds));
                             }
                         });
@@ -220,9 +223,9 @@ public class ZookeeperRegistry extends FailbackRegistry {
     }
 
     /**
-     *找到url所有categoriesPath，再找到每个categoriesPath下的子节点加入list
+     * 找到url所有categoriesPath，再找到每个categoriesPath下的子节点加入list
      * 根据url过滤list,选择匹配的url集合返回
-     * */
+     */
     @Override
     public List<URL> lookup(URL url) {
         if (url == null) {
@@ -305,7 +308,7 @@ public class ZookeeperRegistry extends FailbackRegistry {
 
     /**
      * 从providers过滤出匹配consumer的url
-     * 如果没有匹配出来，则用path中的category，加上consumer创建一个url放入list并返回
+     * 如果没有匹配出来，则用path中的category+empty协议+consumerUrl创建一个url放入list并返回
      */
     private List<URL> toUrlsWithEmpty(URL consumer, String path, List<String> providers) {
         List<URL> urls = toUrlsWithoutEmpty(consumer, providers);
