@@ -1,14 +1,9 @@
-1）设置权重10.13.1.45=50，设置权重10.10.5.240=200（consumer会使用），configurators目录
-[override%3A%2F%2F10.13.1.45%2Fcom.tiangou.im.api.UserManagerApi%3Fcategory=configurators
-dynamic=false
-enabled=true
-weight=50, 
+1）设置权重provider:10.13.1.45=50，设置权重provider:10.10.5.240=200（consumer会使用），configurators目录
+[
+ override://10.13.1.45:20890/com.tiangou.im.api.SendMessageApi?category=configurators&dynamic=false&enabled=true&weight=50
+ override://10.10.5.240:20890/com.tiangou.im.api.SendMessageApi?category=configurators&dynamic=false&enabled=true&weight=200
+]
 
-
-override%3A%2F%2F10.10.5.240%3A20890%2Fcom.tiangou.im.api.UserManagerApi%3Fcategory=configurators
-dynamic=false
-enabled=true
-weight=200]
 
 2）负载均衡算法选择（consumer会使用），对所有consumer生效，configurators目录
 [override%3A%2F%2F0.0.0.0%2Fcom.tiangou.im.api.UserManagerApi%3Fcategory=configurators
@@ -16,7 +11,18 @@ dynamic=false
 enabled=true
 loadbalance=random]
 
-3）访问控制设置：禁止consumer:248访问ls routers目录
+3）屏蔽consumer248的使用，即mock=force:return null（consumer会使用），configurators目录
+[override://10.10.5.248/com.tiangou.im.api.UserManagerApi?category=configurators&dynamic=false&enabled=true&mock=force:return
+null]
+
+4）容错consumer248的使用，即mock=fail:return null（consumer会使用），configurators目录
+[override://10.10.5.248/com.tiangou.im.api.UserManagerApi?category=configurators&dynamic=false&enabled=true&mock=fail:return
+null]
+
+5）提供者禁用  configurators目录
+[override://10.13.1.45:20890/com.tiangou.im.api.UserManagerApi?category=configurators&disabled=true&dynamic=false&enabled=true]
+
+6）访问控制设置：禁止consumer:248访问任何provider，routers目录
 [route%3A%2F%2F0.0.0.0%2Fcom.tiangou.im.api.UserManagerApi%3Fcategory=routers
 dynamic=false
 enabled=true
@@ -24,22 +30,10 @@ force=true
 name=com.tiangou.im.api.UserManagerApi+blackwhitelist
 priority=0
 router=condition
-rule=consumer.host
-%253D
-10.10.5.248
-%253D%253E
-false（url解码为：consumer.host = 10.10.5.248 => false）
+rule=consumer.host = 10.10.5.248 => false
 runtime=false]
 
-4）屏蔽consumer248的使用，即mock=force:return null（consumer会使用），configurators目录
-[override%3A%2F%2F10.10.5.248%2Fcom.tiangou.im.api.UserManagerApi%3Fcategory%3Dconfigurators%26dynamic%3Dfalse%26enabled%3Dtrue%26mock%3Dforce%253Areturn
-null]
-
-5）容错consumer248的使用，即mock=fail:return null（consumer会使用），configurators目录
-[override%3A%2F%2F10.10.5.248%2Fcom.tiangou.im.api.UserManagerApi%3Fcategory%3Dconfigurators%26dynamic%3Dfalse%26enabled%3Dtrue%26mock%3Dfail%253Areturn
-null]
-
-6）route配置，consumer248 路由到provider 10.13.1.45 
+7）route配置，consumer248 路由到provider 10.13.1.45   router目录
 [route://0.0.0.0/com.tiangou.im.api.UserManagerApi?
 category=routers
 dynamic=false
@@ -55,5 +49,3 @@ provider.port=20890
 provider.protocol=dubbo
 runtime=false]
 
-7）提供者禁用  configurators目录
-[override://10.13.1.45:20890/com.tiangou.im.api.UserManagerApi?category=configurators&disabled=true&dynamic=false&enabled=true]

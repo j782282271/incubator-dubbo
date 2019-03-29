@@ -47,18 +47,17 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public abstract class AbstractRegistry implements Registry {
 
-    // URL address separator, used in file cache, service provider URL separation
+    // URL地址分隔符，用于文件缓存中，服务提供者URL分隔
     private static final char URL_SEPARATOR = ' ';
-    // URL address separated regular expression for parsing the service provider URL list in the file cache
+    // URL地址分隔正则表达式，用于解析文件缓存中服务提供者URL列表
     private static final String URL_SPLIT = "\\s+";
     // Log output
     protected final Logger logger = LoggerFactory.getLogger(getClass());
-    // Local disk cache, where the special key value.registies records the list of registry centers, and the others are the list of notified service providers
-    //定时保存到文件的内存内容
+    //本地磁盘缓存，其中特殊的key值：registies 记录注册中心列表
+    // 其它均为notified服务提供者列表
     private final Properties properties = new Properties();
-    // File cache timing writing
+    // 文件缓存定时写入
     private final ExecutorService registryCacheExecutor = Executors.newFixedThreadPool(1, new NamedThreadFactory("DubboSaveRegistryCache", true));
-    // Is it synchronized to save the file
     //是否同步保存磁盘
     private final boolean syncSaveFile;
     //记录更新磁盘缓存配置的版本，防并发先来的的覆盖后来的
@@ -69,9 +68,9 @@ public abstract class AbstractRegistry implements Registry {
     private final ConcurrentMap<URL, Set<NotifyListener>> subscribed = new ConcurrentHashMap<URL, Set<NotifyListener>>();
     //category（包括config/route）目录下的的url配置变化信息存储在内存notified中
     private final ConcurrentMap<URL, Map<String/**category*/, List<URL>>> notified = new ConcurrentHashMap<URL, Map<String, List<URL>>>();
-    //zookeeper://127.0.0.1:2181/com.alibaba.dubbo.registry.RegistryService?
+    //zookeeper://127.0.0.1:2181/com.alibaba.dubbo.registry.RegistryService，可能含一些密码信息
     private URL registryUrl;
-    // Local disk cache file
+    //本地磁盘缓存文件
     private File file;
 
     public AbstractRegistry(URL url) {
