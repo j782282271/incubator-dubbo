@@ -38,6 +38,8 @@ import java.util.*;
 
 /**
  * RegistryDirectory
+ * consumer端监听和注册zk变化交由此类完成，与provider端不同，provider端的zk注册于监听直接由RegistryProtocol完成
+ * 记录了consumer所需要的invoker信息，当zk目录urls发生变化时通知本类，修改invoker
  */
 public class RegistryDirectory<T> extends AbstractDirectory<T> implements NotifyListener {
 
@@ -190,6 +192,10 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
      * [consumers, configurators, routers, providers]，这些目录的节点（url）变化，会调用此方法
      * 其中configurators目录下配置了一些配置相关的url信息，
      * 优先级：override（即configurators）> -D > consumer > provider
+     * <p>
+     * configurators目录下的url配置叠加到overrideDirectoryUrl上
+     * routerUrls信息set到Routers上，运行时使用
+     * providerurls用来创建invoker
      */
     @Override
     public synchronized void notify(List<URL> urls) {
@@ -237,7 +243,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
     }
 
     /**
-     * 根据invokerURL列表转换为invoker列表。转换规则如下：
+     * 根据invokerURL（provider）列表转换为invoker列表。转换规则如下：
      * 1.如果url已经被转换为invoker，则不在重新引用，直接从缓存中获取，注意如果url中任何一个参数变更也会重新引用
      * 2.如果传入的invoker列表不为空，则表示最新的invoker列表
      * 3.如果传入的invokerUrl列表是空，则表示只是下发的override规则或route规则，需要重新交叉对比，决定是否需要重新引用。
@@ -246,7 +252,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
      */
     // TODO: 2017/8/31 FIXME The thread pool should be used to refresh the address, otherwise the task may be accumulated.
     private void refreshInvoker(List<URL> invokerUrls) {
-        //含有一个empty的协议，则禁止使用此类获取invokers
+        //provider含有一个empty的协议，则禁止使用此类获取invokers
         if (invokerUrls != null && invokerUrls.size() == 1 && invokerUrls.get(0) != null
                 && Constants.EMPTY_PROTOCOL.equals(invokerUrls.get(0).getProtocol())) {
             this.forbidden = true; // Forbid to access
@@ -361,6 +367,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
      * 1用consumer协议过滤provider协议
      * 2consumer的queryMap与provider合并，再用configrators目录下的配置覆盖，顺便将provider的一些参数信息加到this.overrideDirectoryUrl中，但是不会改变this.configurators
      * 3找到url的key（fullString）,看看内存urlMap中是否有该invoker，有则使用该invoker，没有则创建一个
+     *
      * @param urls
      * @return invokers
      */
@@ -491,8 +498,9 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
 
     /**
      * Transform the invokers list into a mapping relationship with a method
-     *  1 method作为key创建新的map
-     *  2 根据this.serviceMethods找到本类支持的method，用route过滤他们的invoker集合
+     * 1 method作为key创建新的map
+     * 2 根据this.serviceMethods找到本类支持的method，用route过滤他们的invoker集合
+     *
      * @param invokersMap Invoker Map
      * @return Mapping relation between Invoker and method
      */

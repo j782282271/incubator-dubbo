@@ -34,6 +34,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * AbstractRegistryFactory. (SPI, Singleton, ThreadSafe)
  *
  * @see com.alibaba.dubbo.registry.RegistryFactory
+ * 缓存了所有创建过的Registry
  */
 public abstract class AbstractRegistryFactory implements RegistryFactory {
 

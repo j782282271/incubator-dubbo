@@ -30,9 +30,10 @@ public class ProviderInvokerWrapper<T> implements Invoker {
     private URL originUrl;
     private URL registryUrl;
     private URL providerUrl;
+    //是否已经注册到zk（或其他）
     private volatile boolean isReg;
 
-    public ProviderInvokerWrapper(Invoker<T> invoker,URL registryUrl,URL providerUrl) {
+    public ProviderInvokerWrapper(Invoker<T> invoker, URL registryUrl, URL providerUrl) {
         this.invoker = invoker;
         this.originUrl = URL.valueOf(invoker.getUrl().toFullString());
         this.registryUrl = URL.valueOf(registryUrl.toFullString());

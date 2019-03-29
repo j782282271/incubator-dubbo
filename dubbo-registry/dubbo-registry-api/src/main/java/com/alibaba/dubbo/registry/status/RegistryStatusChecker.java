@@ -26,7 +26,7 @@ import java.util.Collection;
 
 /**
  * RegistryStatusChecker
- *
+ *定时检查AbstractRegistryFactory.getRegistries();中的Registry是否isAvailable
  */
 @Activate
 public class RegistryStatusChecker implements StatusChecker {

@@ -60,6 +60,7 @@ public interface RegistryService {
      * 1. 当URL设置了check=false时，订阅失败后不报错，在后台定时重试。<br>
      * 2. 当URL设置了category=routers，只通知指定分类的数据，多个分类用逗号分隔，并允许星号通配，表示订阅所有分类数据。<br>
      * 3. 允许以interface,group,version,classifier作为条件查询，如：interface=com.alibaba.foo.BarService&version=1.0.0<br>
+     * 见UrlUtils.isMatch方法
      * 4. 并且查询条件允许星号通配，订阅所有接口的所有分组的所有版本，或：interface=*&group=*&version=*&classifier=*<br>
      * 5. 当注册中心重启，网络抖动，需自动恢复订阅请求。<br>
      * 6. 允许URI相同但参数不同的URL并存，不能覆盖。<br>

@@ -26,14 +26,7 @@ import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -308,7 +301,7 @@ public final class URL implements Serializable {
 
     /**
      * Fetch IP address for this URL.
-     *
+     * <p>
      * Pls. note that IP should be used instead of Host when to compare with socket's address or to search in a map
      * which use address as its key.
      *
@@ -1394,4 +1387,16 @@ public final class URL implements Serializable {
         return true;
     }
 
+    public static void main(String[] args) {
+        //equals函数用parameters这个map判断相等
+        Map<String, String> m1 = new HashMap<String, String>();
+        m1.put("1", "2");
+        m1.put("3", "2");
+        m1.put("4", "2");
+        Map<String, String> m2 = new HashMap<String, String>();
+        m2.put("1", "2");
+        m2.put("4", "2");
+        m2.put("3", "2");
+        boolean b = m1.equals(m2);//true
+    }
 }

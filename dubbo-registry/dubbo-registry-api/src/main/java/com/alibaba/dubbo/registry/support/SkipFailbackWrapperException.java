@@ -20,7 +20,7 @@ package com.alibaba.dubbo.registry.support;
  * Wrapper Exception, it is used to indicate that {@link FailbackRegistry} skips Failback.
  * <p>
  * NOTE: Expect to find other more conventional ways of instruction.
- *
+ * doRegister抛出此异常，则FailbackRegistry不会进行重试register,
  * @see FailbackRegistry
  */
 public class SkipFailbackWrapperException extends RuntimeException {

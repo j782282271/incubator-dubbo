@@ -23,22 +23,15 @@ import com.alibaba.dubbo.common.utils.ExecutorUtil;
 import com.alibaba.dubbo.common.utils.NamedThreadFactory;
 import com.alibaba.dubbo.registry.NotifyListener;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 
 /**
  * FailbackRegistry. (SPI, Prototype, ThreadSafe)
- *
+ * 注册失败重试，或者抛异常
+ * 订阅失败查缓存，缓存没有则重试或者抛异常
+ * 注册信息内存存储
+ * 通知过的信息内存存储...
  */
 public abstract class FailbackRegistry extends AbstractRegistry {
 
@@ -128,8 +121,8 @@ public abstract class FailbackRegistry extends AbstractRegistry {
     }
 
     /**
-     * 注册失败的放入失败的list中
-     * */
+     * 注册失败的放入失败的list中,不断重试，除非强制check抛出异常
+     */
     @Override
     public void register(URL url) {
         super.register(url);
@@ -190,6 +183,10 @@ public abstract class FailbackRegistry extends AbstractRegistry {
         }
     }
 
+    /**
+     * 订阅失败则从内存缓存中(从磁盘加载进来)读取配置的url
+     * 如果本地磁盘也没有，则重试，或者强制check抛出异常
+     */
     @Override
     public void subscribe(URL url, NotifyListener listener) {
         super.subscribe(url, listener);
@@ -202,7 +199,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
 
             List<URL> urls = getCacheUrls(url);
             if (urls != null && !urls.isEmpty()) {
-                notify(url, listener, urls);
+                notify(url, listener, urls);//本方法开头调用了super.subscribe(url, listener);已经注册了listener此处只需要notify一下即可
                 logger.error("Failed to subscribe " + url + ", Using cached list: " + urls + " from cache file: " + getUrl().getParameter(Constants.FILE_KEY, System.getProperty("user.home") + "/dubbo-registry-" + url.getHost() + ".cache") + ", cause: " + t.getMessage(), t);
             } else {
                 // If the startup detection is opened, the Exception is thrown directly.
@@ -286,7 +283,7 @@ public abstract class FailbackRegistry extends AbstractRegistry {
 
     /**
      * 将已注册、已订阅的信息，放入失败列表中，定时任务会取出重新注册
-     * */
+     */
     @Override
     protected void recover() throws Exception {
         // register

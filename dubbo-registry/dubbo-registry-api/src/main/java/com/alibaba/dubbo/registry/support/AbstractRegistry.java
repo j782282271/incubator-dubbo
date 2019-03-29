@@ -54,7 +54,7 @@ public abstract class AbstractRegistry implements Registry {
     // Log output
     protected final Logger logger = LoggerFactory.getLogger(getClass());
     //本地磁盘缓存，其中特殊的key值：registies 记录注册中心列表
-    // 其它均为notified服务提供者列表
+    //其它均为notified服务提供者列表
     private final Properties properties = new Properties();
     // 文件缓存定时写入
     private final ExecutorService registryCacheExecutor = Executors.newFixedThreadPool(1, new NamedThreadFactory("DubboSaveRegistryCache", true));
@@ -67,6 +67,7 @@ public abstract class AbstractRegistry implements Registry {
     //监听category（包括config/route）目录下的的url配置变化情况
     private final ConcurrentMap<URL, Set<NotifyListener>> subscribed = new ConcurrentHashMap<URL, Set<NotifyListener>>();
     //category（包括config/route）目录下的的url配置变化信息存储在内存notified中
+    //key为subscribed中的key，不是通知过来的key,通知过来的key如果与subscribed的key matched，则通知subscribed的listener,通知过后放到这里
     private final ConcurrentMap<URL, Map<String/**category*/, List<URL>>> notified = new ConcurrentHashMap<URL, Map<String, List<URL>>>();
     //zookeeper://127.0.0.1:2181/com.alibaba.dubbo.registry.RegistryService，可能含一些密码信息
     private URL registryUrl;
@@ -250,6 +251,9 @@ public abstract class AbstractRegistry implements Registry {
     @Override
     public List<URL> lookup(URL url) {
         List<URL> result = new ArrayList<URL>();
+        //url必须与key中的每个参数都相同才行，
+        //注意getNotified中的key也是subscribe中的key,notify一些urls，这些urls经过与subscribe中的key匹配UrlUtils.isMatch后，
+        //如果匹配上了会通知，通知后会放在notified这个map中，其中的key就是subscribe中的key
         Map<String, List<URL>> notifiedUrls = getNotified().get(url);
         if (notifiedUrls != null && notifiedUrls.size() > 0) {
             for (List<URL> urls : notifiedUrls.values()) {

@@ -47,6 +47,11 @@ import static com.alibaba.dubbo.common.Constants.*;
 
 /**
  * RegistryProtocol
+ * 1）for provider，提供功能：暴露、注册到zk、监听zk变化动态修改exporter
+ * 2）for consumer，refer：
+ * 创建RegistryDirectory，通过RegistryDirectory订阅和感知zk的变化（与exporter不同，exporter通过本类注册和监听变化）
+ * consumner关心三个目录：providers、configurators、routers
+ * 通过RegistryDirectory创建clusterInvoker
  */
 public class RegistryProtocol implements Protocol {
 
@@ -72,7 +77,9 @@ public class RegistryProtocol implements Protocol {
         return INSTANCE;
     }
 
-    //Filter the parameters that do not need to be output in url(Starting with .)
+    /**
+     * 过滤URL中不需要输出的参数(以点号开头的)
+     */
     private static String[] getFilteredKeys(URL url) {
         Map<String, String> params = url.getParameters();
         if (params != null && !params.isEmpty()) {
@@ -118,6 +125,12 @@ public class RegistryProtocol implements Protocol {
         registry.register(registedProviderUrl);
     }
 
+    /**
+     * 封装invoker，暴露并创建exporter，缓存到bounds中
+     * register注册到zk
+     * subscibe，只订阅configurators目录的变化
+     * 如果configurators目录变化，则找到最初的originInvoker,获取最初的url合并configurators目录下的所有url，然后利用originInvoker和合并后的url重新创建exporter
+     */
     @Override
     public <T> Exporter<T> export(final Invoker<T> originInvoker) throws RpcException {
         //export invoker
@@ -148,11 +161,12 @@ public class RegistryProtocol implements Protocol {
 
         // Subscribe the override data
         // FIXME When the provider subscribes, it will affect the scene : a certain JVM exposes the service and call the same service. Because the subscribed is cached key with the name of the service, it causes the subscription information to cover.
-        //overrideSubscribeUrl=>provider://10.13.1.45:20880/com.alibaba.dubbo.demo.DemoService
+        //overrideSubscribeUrl=>provider://192.168.0.5:20880/com.alibaba.dubbo.demo.DemoTestService?anyhost=true&application=demo-provider&bean.name=com.alibaba.dubbo.demo.DemoTestService&category=configurators&check=false&dubbo=2.0.2&generic=false&interface=com.alibaba.dubbo.demo.DemoTestService&methods=speak&pid=15116&side=provider&timestamp=1553876586376
+        //即configurators目录
         final URL overrideSubscribeUrl = getSubscribedOverrideUrl(registeredProviderUrl);
         final OverrideListener overrideSubscribeListener = new OverrideListener(overrideSubscribeUrl, originInvoker);
         overrideListeners.put(overrideSubscribeUrl, overrideSubscribeListener);
-        //监听节点变化，缓存的本地，即使provider也会缓存到本地
+        //监听节点变化，缓存的本地，即使provider也会缓存到本地，provider只监听configurators目录
         registry.subscribe(overrideSubscribeUrl, overrideSubscribeListener);
         //Ensure that a new exporter instance is returned every time export
         return new DestroyableExporter<T>(exporter, originInvoker, overrideSubscribeUrl, registeredProviderUrl);
@@ -304,6 +318,11 @@ public class RegistryProtocol implements Protocol {
         return ExtensionLoader.getExtensionLoader(Cluster.class).getExtension("mergeable");
     }
 
+    /**
+     * 创建RegistryDirectory，通过RegistryDirectory订阅和感知zk的变化
+     * consumer关心三个目录：providers、configurators、routers
+     * 通过RegistryDirectory创建clusterInvoker
+     */
     private <T> Invoker<T> doRefer(Cluster cluster, Registry registry, Class<T> type, URL url) {
         RegistryDirectory<T> directory = new RegistryDirectory<T>(type, url);
         directory.setRegistry(registry);
@@ -338,6 +357,7 @@ public class RegistryProtocol implements Protocol {
     }
 
     public static class InvokerDelegete<T> extends InvokerWrapper<T> {
+
         private final Invoker<T> invoker;
 
         /**
@@ -345,6 +365,8 @@ public class RegistryProtocol implements Protocol {
          * @param url     invoker.getUrl return this value
          */
         public InvokerDelegete(Invoker<T> invoker, URL url) {
+            //invoker为originUrl含有最初的url,或者含zk url
+            //url为newUrl，即合并过config目录下的配置的url
             super(invoker, url);
             this.invoker = invoker;
         }
@@ -359,10 +381,10 @@ public class RegistryProtocol implements Protocol {
     }
 
     /**
-     * Reexport: the exporter destroy problem in protocol
-     * 1.Ensure that the exporter returned by registryprotocol can be normal destroyed
-     * 2.No need to re-register to the registry after notify
-     * 3.The invoker passed by the export method , would better to be the invoker of exporter
+     * 重新export 1.protocol中的exporter destory问题
+     * 1.要求registryprotocol返回的exporter可以正常destroy
+     * 2.notify后不需要重新向注册中心注册
+     * 3.export 方法传入的invoker最好能一直作为exporter的invoker.
      */
     private class OverrideListener implements NotifyListener {
 
@@ -375,7 +397,13 @@ public class RegistryProtocol implements Protocol {
         }
 
         /**
-         * @param urls The list of registered information , is always not empty, The meaning is the same as the return value of {@link com.alibaba.dubbo.registry.RegistryService#lookup(URL)}.
+         * copy自ali.dubbo：
+         * 1从urls中取出config目录下的匹配的url，
+         * 2将匹配的url变为configurators
+         * 3根据this.originInvoker找到exporter和originUrl
+         * 4用configurators配置originUrl（即合并originUrl与configurators）
+         * 5如果url发生变化，则利用originInvoker重新创建exporter
+         * 一些说明见该方法的父类
          */
         @Override
         public synchronized void notify(List<URL> urls) {
@@ -389,6 +417,7 @@ public class RegistryProtocol implements Protocol {
 
             List<Configurator> configurators = RegistryDirectory.toConfigurators(matchedUrls);
 
+            //以下根据invoker找到exporter，并验证
             final Invoker<?> invoker;
             if (originInvoker instanceof InvokerDelegete) {
                 invoker = ((InvokerDelegete<?>) originInvoker).getInvoker();
@@ -413,6 +442,9 @@ public class RegistryProtocol implements Protocol {
             }
         }
 
+        /**
+         * currentSubscribe只订阅了configurations目录,所以只有configurations目录的变化才会通知provider
+         */
         private List<URL> getMatchedUrls(List<URL> configuratorUrls, URL currentSubscribe) {
             List<URL> result = new ArrayList<URL>();
             for (URL url : configuratorUrls) {

@@ -27,8 +27,9 @@ import com.alibaba.dubbo.rpc.RpcException;
  */
 public class InvokerWrapper<T> implements Invoker<T> {
 
+    //invoker为originUrl含有最初的url
     private final Invoker<T> invoker;
-
+    //url为newUrl，即合并过config目录下的配置的url，实际的暴露过程中使用的是本url，不是最初的url
     private final URL url;
 
     public InvokerWrapper(Invoker<T> invoker, URL url) {

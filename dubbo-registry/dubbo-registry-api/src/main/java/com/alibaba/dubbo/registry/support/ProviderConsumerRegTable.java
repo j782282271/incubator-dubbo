@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * @date 2017/11/23
+ * provider consumer 注册静态容器
  */
 public class ProviderConsumerRegTable {
     public static ConcurrentHashMap<String, Set<ProviderInvokerWrapper>> providerInvokers = new ConcurrentHashMap<String, Set<ProviderInvokerWrapper>>();
