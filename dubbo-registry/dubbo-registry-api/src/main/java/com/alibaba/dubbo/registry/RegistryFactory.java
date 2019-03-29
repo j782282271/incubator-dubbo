@@ -31,6 +31,7 @@ public interface RegistryFactory {
     /**
      * 连接注册中心.
      * <p>
+     * <p>
      * url中含的是注册中心的ip:port
      * 连接注册中心需处理契约：<br>
      * 1. 当设置check=false时表示不检查连接，否则在连接不上时抛出异常。<br>
