@@ -33,17 +33,20 @@ import java.util.concurrent.ConcurrentMap;
 
 /**
  * ConsistentHashLoadBalance
- *
  */
 public class ConsistentHashLoadBalance extends AbstractLoadBalance {
 
     private final ConcurrentMap<String, ConsistentHashSelector<?>> selectors = new ConcurrentHashMap<String, ConsistentHashSelector<?>>();
 
+    /**
+     * 与consumerUrl(param: url)无关，根据invocation.args选择invoker，固定的arg一直定位到同一invoker
+     */
     @SuppressWarnings("unchecked")
     @Override
     protected <T> Invoker<T> doSelect(List<Invoker<T>> invokers, URL url, Invocation invocation) {
         String methodName = RpcUtils.getMethodName(invocation);
         String key = invokers.get(0).getUrl().getServiceKey() + "." + methodName;
+        //provider端的invokers发生变化则重新创建ConsistentHashSelector
         int identityHashCode = System.identityHashCode(invokers);
         ConsistentHashSelector<T> selector = (ConsistentHashSelector<T>) selectors.get(key);
         if (selector == null || selector.identityHashCode != identityHashCode) {
@@ -63,19 +66,27 @@ public class ConsistentHashLoadBalance extends AbstractLoadBalance {
 
         private final int[] argumentIndex;
 
+        /**
+         * invocation调用的方法：invocation
+         * identityHashCode根据invokers创建的hashCode
+         */
         ConsistentHashSelector(List<Invoker<T>> invokers, String methodName, int identityHashCode) {
             this.virtualInvokers = new TreeMap<Long, Invoker<T>>();
             this.identityHashCode = identityHashCode;
             URL url = invokers.get(0).getUrl();
             //复制数量，即每个服务重复160个虚拟节点
             this.replicaNumber = url.getMethodParameter(methodName, "hash.nodes", 160);
+            //得到provider url中的methodName对应的hash.arguments参数
             String[] index = Constants.COMMA_SPLIT_PATTERN.split(url.getMethodParameter(methodName, "hash.arguments", "0"));
             argumentIndex = new int[index.length];
             for (int i = 0; i < index.length; i++) {
                 argumentIndex[i] = Integer.parseInt(index[i]);
             }
+            //argumentIndex=[1,4,2]代表着methodName方法的第1、4、2个参数用来计算hash，其他参数忽略
             for (Invoker<T> invoker : invokers) {
                 String address = invoker.getUrl().getAddress();
+                //一个160个环上的值m索引同一个incoker
+                //m由md5(address + i)+（0-4）计算所得
                 for (int i = 0; i < replicaNumber / 4; i++) {
                     byte[] digest = md5(address + i);
                     for (int h = 0; h < 4; h++) {

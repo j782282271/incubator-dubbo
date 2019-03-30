@@ -32,47 +32,62 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Round robin load balance.
- * 
- * Smoothly round robin's implementation @since 2.6.5 
+ * <p>
+ * Smoothly round robin's implementation @since 2.6.5
+ * 按照权重轮询
  */
 public class RoundRobinLoadBalance extends AbstractLoadBalance {
     public static final String NAME = "roundrobin";
-    
+
+    //1 mins
     private static int RECYCLE_PERIOD = 60000;
-    
+
     protected static class WeightedRoundRobin {
         private int weight;
         private AtomicLong current = new AtomicLong(0);
         private long lastUpdate;
+
         public int getWeight() {
             return weight;
         }
+
         public void setWeight(int weight) {
             this.weight = weight;
             current.set(0);
         }
+
+        /**
+         * 每个invoker添加自己的权重，大权重每次加的大，小权重每次加的小
+         */
         public long increaseCurrent() {
             return current.addAndGet(weight);
         }
+
+        /**
+         * 每个invoker被选中之后，减去本轮的所有权重
+         */
         public void sel(int total) {
             current.addAndGet(-1 * total);
         }
+
         public long getLastUpdate() {
             return lastUpdate;
         }
+
         public void setLastUpdate(long lastUpdate) {
             this.lastUpdate = lastUpdate;
         }
     }
 
-    private ConcurrentMap<String, ConcurrentMap<String, WeightedRoundRobin>> methodWeightMap = new ConcurrentHashMap<String, ConcurrentMap<String, WeightedRoundRobin>>();
+    //一个方法对应多个invoker
+    private ConcurrentMap<String/**invoker.interfaceName+method*/, ConcurrentMap<String/**invoker.url.identifyId*/, WeightedRoundRobin>> methodWeightMap = new ConcurrentHashMap<String, ConcurrentMap<String, WeightedRoundRobin>>();
     private AtomicBoolean updateLock = new AtomicBoolean();
-    
+
     /**
      * get invoker addr list cached for specified invocation
      * <p>
      * <b>for unit test only</b>
-     * 
+     *
      * @param invokers
      * @param invocation
      * @return
@@ -85,7 +100,7 @@ public class RoundRobinLoadBalance extends AbstractLoadBalance {
         }
         return null;
     }
-    
+
     @Override
     protected <T> Invoker<T> doSelect(List<Invoker<T>> invokers, URL url, Invocation invocation) {
         String key = invokers.get(0).getUrl().getServiceKey() + "." + invocation.getMethodName();
@@ -116,15 +131,18 @@ public class RoundRobinLoadBalance extends AbstractLoadBalance {
                 //weight changed
                 weightedRoundRobin.setWeight(weight);
             }
+            //每个invoker添加自己的权重，大权重每次加的大，小权重每次加的小
             long cur = weightedRoundRobin.increaseCurrent();
             weightedRoundRobin.setLastUpdate(now);
             if (cur > maxCurrent) {
+                //每一轮中weight累计最大的被选中
                 maxCurrent = cur;
                 selectedInvoker = invoker;
                 selectedWRR = weightedRoundRobin;
             }
             totalWeight += weight;
         }
+        //invokers的值会全都加到map，所以map大小一定大于invokers，所以map中会存在一些过期冗余的invoker,
         if (!updateLock.get() && invokers.size() != map.size()) {
             if (updateLock.compareAndSet(false, true)) {
                 try {
@@ -134,6 +152,7 @@ public class RoundRobinLoadBalance extends AbstractLoadBalance {
                     Iterator<Entry<String, WeightedRoundRobin>> it = newMap.entrySet().iterator();
                     while (it.hasNext()) {
                         Entry<String, WeightedRoundRobin> item = it.next();
+                        //超过1分钟没有更新的invoker，被删除
                         if (now - item.getValue().getLastUpdate() > RECYCLE_PERIOD) {
                             it.remove();
                         }

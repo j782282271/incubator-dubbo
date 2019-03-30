@@ -26,10 +26,14 @@ import java.util.List;
 
 /**
  * AbstractLoadBalance
- *
+ * 1简单封装了select方法
+ * 2刚启动期间，降低权重的计算方法
  */
 public abstract class AbstractLoadBalance implements LoadBalance {
 
+    /**
+     * warmup热身，刚启动期间，降低权重
+     */
     static int calculateWarmupWeight(int uptime, int warmup, int weight) {
         int ww = (int) ((float) uptime / ((float) warmup / (float) weight));
         return ww < 1 ? 1 : (ww > weight ? weight : ww);
@@ -51,9 +55,11 @@ public abstract class AbstractLoadBalance implements LoadBalance {
         if (weight > 0) {
             long timestamp = invoker.getUrl().getParameter(Constants.REMOTE_TIMESTAMP_KEY, 0L);
             if (timestamp > 0L) {
+                //provider的启动时间
                 int uptime = (int) (System.currentTimeMillis() - timestamp);
                 int warmup = invoker.getUrl().getParameter(Constants.WARMUP_KEY, Constants.DEFAULT_WARMUP);
                 if (uptime > 0 && uptime < warmup) {
+                    //warmup热身，刚启动期间，降低权重
                     weight = calculateWarmupWeight(uptime, warmup, weight);
                 }
             }

@@ -25,7 +25,7 @@ import java.util.Random;
 
 /**
  * random load balance.
- *
+ * 按照权重随机取出invoker
  */
 public class RandomLoadBalance extends AbstractLoadBalance {
 
