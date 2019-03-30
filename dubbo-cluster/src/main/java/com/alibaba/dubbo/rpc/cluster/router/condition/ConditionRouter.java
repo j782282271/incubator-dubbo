@@ -29,18 +29,14 @@ import com.alibaba.dubbo.rpc.RpcException;
 import com.alibaba.dubbo.rpc.cluster.Router;
 
 import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * ConditionRouter
- *
+ * 目前admin支持的
+ * 解析url中的匹配条件获取router
  */
 public class ConditionRouter implements Router, Comparable<Router> {
 

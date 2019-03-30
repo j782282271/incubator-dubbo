@@ -26,12 +26,7 @@ import com.alibaba.dubbo.rpc.RpcContext;
 import com.alibaba.dubbo.rpc.RpcException;
 import com.alibaba.dubbo.rpc.cluster.Router;
 
-import javax.script.Bindings;
-import javax.script.Compilable;
-import javax.script.CompiledScript;
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
+import javax.script.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -40,7 +35,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * ScriptRouter
- *
+ * 用户可以写一段关于router的函数传过来，此处解析，router规则：
+ * 函数的含有以下关键字：invokers、invocation、context
  */
 public class ScriptRouter implements Router {
 
@@ -84,6 +80,9 @@ public class ScriptRouter implements Router {
         return url;
     }
 
+    /**
+     * https://blog.csdn.net/qq_24082497/article/details/77868686 介绍js解析
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <T> List<Invoker<T>> route(List<Invoker<T>> invokers, URL url, Invocation invocation) throws RpcException {
