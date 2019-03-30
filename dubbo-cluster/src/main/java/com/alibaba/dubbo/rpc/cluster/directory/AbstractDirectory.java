@@ -35,7 +35,10 @@ import java.util.List;
 
 /**
  * Abstract implementation of Directory: Invoker list returned from this Directory's list method have been filtered by Routers
- *
+ * 存储routers用于路由
+ * 存储url registryUrl
+ * 存储consumerUrl
+ * 调用子类doList方法获取invokerList，使用router过滤
  */
 public abstract class AbstractDirectory<T> implements Directory<T> {
 
@@ -46,11 +49,13 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
 
     private volatile boolean destroyed = false;
 
+    //RegistryDirectory.subscribe方法会赋值此值
     private volatile URL consumerUrl;
 
     private volatile List<Router> routers;
 
     public AbstractDirectory(URL url) {
+        //url：zookeeper://127.0.0.1:2181/com.alibaba.dubbo.registry.RegistryService?application=demo-consumer&dubbo=2.0.2&pid=8432&qos.port=33333&refer=application%3Ddemo-consumer%26check%3Dfalse%26dubbo%3D2.0.2%26interface%3Dcom.alibaba.dubbo.demo.DemoService%26methods%3DsayHello%26pid%3D8432%26qos.port%3D33333%26register.ip%3D10.13.1.45%26side%3Dconsumer%26timestamp%3D1549086269914&timestamp=1549086269954
         this(url, null);
     }
 
@@ -98,6 +103,11 @@ public abstract class AbstractDirectory<T> implements Directory<T> {
         return routers;
     }
 
+    /**
+     * 添加router
+     * 添加registryUrl中的router
+     * 添加MockInvokersSelector这个router
+     */
     protected void setRouters(List<Router> routers) {
         // copy list
         routers = routers == null ? new ArrayList<Router>() : new ArrayList<Router>(routers);
