@@ -6,10 +6,7 @@
 
 
 2）负载均衡算法选择（consumer会使用），对所有consumer生效，configurators目录
-[override%3A%2F%2F0.0.0.0%2Fcom.tiangou.im.api.UserManagerApi%3Fcategory=configurators
-dynamic=false
-enabled=true
-loadbalance=random]
+[override://0.0.0.0/com.tiangou.im.api.SendMessageApi?category=configurators&dynamic=false&enabled=true&loadbalance=roundrobin]
 
 3）屏蔽consumer248的使用，即mock=force:return null（consumer会使用），configurators目录
 [override://10.10.5.248/com.tiangou.im.api.UserManagerApi?category=configurators&dynamic=false&enabled=true&mock=force:return
@@ -45,7 +42,7 @@ router=condition
 rule=consumer.host=10.10.5.248
 method=existIMAccByUserKey
 consumer.application=im-route=>provider.host=10.13.1.45
-provider.port=20890
+provider.port=20890	
 provider.protocol=dubbo
 runtime=false]
 
