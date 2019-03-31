@@ -24,7 +24,6 @@ import java.util.Map;
 
 /**
  * ClusterUtils
- *
  */
 public class ClusterUtils {
 
@@ -35,11 +34,9 @@ public class ClusterUtils {
         Map<String, String> map = new HashMap<String, String>();
         Map<String, String> remoteMap = remoteUrl.getParameters();
 
-
         if (remoteMap != null && remoteMap.size() > 0) {
             map.putAll(remoteMap);
-
-            // Remove configurations from provider, some items should be affected by provider.
+            //移除一些提供者的属性，如线程池不需要依赖提供者的配置
             map.remove(Constants.THREAD_NAME_KEY);
             map.remove(Constants.DEFAULT_KEY_PREFIX + Constants.THREAD_NAME_KEY);
 
@@ -92,6 +89,7 @@ public class ClusterUtils {
                 map.put(Constants.REMOTE_TIMESTAMP_KEY, remoteMap.get(Constants.TIMESTAMP_KEY));
             }
             // Combine filters and listeners on Provider and Consumer
+            // 合并Provider and Consumer的filter和listener
             String remoteFilter = remoteMap.get(Constants.REFERENCE_FILTER_KEY);
             String localFilter = localMap.get(Constants.REFERENCE_FILTER_KEY);
             if (remoteFilter != null && remoteFilter.length() > 0

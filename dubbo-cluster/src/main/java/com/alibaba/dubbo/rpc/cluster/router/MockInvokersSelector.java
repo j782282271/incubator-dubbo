@@ -29,6 +29,9 @@ import java.util.List;
 /**
  * A specific Router designed to realize mock feature.
  * If a request is configured to use mock, then this router guarantees that only the invokers with protocol MOCK appear in final the invoker list, all other invokers will be excluded.
+ * 区分invoker.url mock协议，如果invocation中显示指定要带mock协议的invoker，则选择具有mock协议的invoker
+ * MockClusterInvoker.selectMockInvoker中会在invocation中指定需要mock invoker
+ * 配置中带有mock信息时，会创建带有mock协议的invoker
  */
 public class MockInvokersSelector implements Router {
 

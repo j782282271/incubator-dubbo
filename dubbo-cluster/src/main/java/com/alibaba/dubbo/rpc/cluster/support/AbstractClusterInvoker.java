@@ -102,7 +102,8 @@ public abstract class AbstractClusterInvoker<T> implements Invoker<T> {
      * 使用loadbalance选择invoker.
      * a)先loadbalance选择，如果在selected列表中 或者 不可用且做检验时，进入下一步(重选),否则直接返回</br>
      * b)重选验证规则：selected > available .保证重选出的结果尽量不在selected中，并且是可用的
-     * 3)stick判断
+     * c)stick判断
+     * d)selected invokers意思为已经调用过，但失败了的invoker集合
      *
      * @param loadbalance load balance policy
      * @param invocation

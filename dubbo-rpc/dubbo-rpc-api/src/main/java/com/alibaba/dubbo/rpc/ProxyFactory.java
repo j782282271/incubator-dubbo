@@ -56,7 +56,8 @@ public interface ProxyFactory {
      * @param type
      * @param url
      * @return invoker
-     * 将impl类变为invoker for provider
+     * 将impl类变为invoker for provider。
+     * 当consumer端需要暴露mock类时也会调用此方法见mockInvoker.getInvoker
      */
     @Adaptive({Constants.PROXY_KEY})
     <T> Invoker<T> getInvoker(T proxy, Class<T> type, URL url) throws RpcException;

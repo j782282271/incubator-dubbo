@@ -23,12 +23,7 @@ import com.alibaba.dubbo.common.logger.Logger;
 import com.alibaba.dubbo.common.logger.LoggerFactory;
 import com.alibaba.dubbo.common.utils.ConfigUtils;
 import com.alibaba.dubbo.common.utils.NamedThreadFactory;
-import com.alibaba.dubbo.rpc.Invocation;
-import com.alibaba.dubbo.rpc.Invoker;
-import com.alibaba.dubbo.rpc.Result;
-import com.alibaba.dubbo.rpc.RpcException;
-import com.alibaba.dubbo.rpc.RpcInvocation;
-import com.alibaba.dubbo.rpc.RpcResult;
+import com.alibaba.dubbo.rpc.*;
 import com.alibaba.dubbo.rpc.cluster.Directory;
 import com.alibaba.dubbo.rpc.cluster.Merger;
 import com.alibaba.dubbo.rpc.cluster.merger.MergerFactory;
@@ -40,11 +35,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 @SuppressWarnings("unchecked")
 public class MergeableClusterInvoker<T> implements Invoker<T> {
@@ -64,7 +55,7 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
 
         String merger = getUrl().getMethodParameter(invocation.getMethodName(), Constants.MERGER_KEY);
         // 如果方法不需要Merge，退化为只调一个Group
-        if (ConfigUtils.isEmpty(merger)) { // If a method doesn't have a merger, only invoke one Group
+        if (ConfigUtils.isEmpty(merger)) {
             for (final Invoker<T> invoker : invokers) {
                 if (invoker.isAvailable()) {
                     return invoker.invoke(invocation);
@@ -129,6 +120,9 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
 //          <dubbo:reference interface="com.xxx.MenuService" group="*">
 //            <dubbo:method name="getMenuItems" merger=".addAll" />
 //          </dubbo:service>
+        //如果指定了.开头的merger方法，则使用该方法merge（该方法属于returnType的一个方法），该merge方法接收invocation调用方法的返回值作为参数
+        //以上举例，如返回值为list,merger方法名配置为.addAll，则addAll为list的方法，且addAll接收list作为参数
+        //否则根据返回类型merge
         if (merger.startsWith(".")) {
             merger = merger.substring(1);
             Method method;

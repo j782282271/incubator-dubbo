@@ -21,17 +21,17 @@ import com.alibaba.dubbo.common.URL;
 import com.alibaba.dubbo.common.logger.Logger;
 import com.alibaba.dubbo.common.logger.LoggerFactory;
 import com.alibaba.dubbo.common.utils.StringUtils;
-import com.alibaba.dubbo.rpc.Invocation;
-import com.alibaba.dubbo.rpc.Invoker;
-import com.alibaba.dubbo.rpc.Result;
-import com.alibaba.dubbo.rpc.RpcException;
-import com.alibaba.dubbo.rpc.RpcInvocation;
-import com.alibaba.dubbo.rpc.RpcResult;
+import com.alibaba.dubbo.rpc.*;
 import com.alibaba.dubbo.rpc.cluster.Directory;
 import com.alibaba.dubbo.rpc.support.MockInvoker;
 
 import java.util.List;
 
+/**
+ * this.selectMockInvoker中会在invocation中指定需要mock invoker
+ * MockInvokersSelector这个route，会根据invoker中的需要mock信息，找到带有mock协议的invoker,没有则创建
+ * 配置中带有mock信息时，会创建带有mock协议的invoker：MockInvoker
+ */
 public class MockClusterInvoker<T> implements Invoker<T> {
 
     private static final Logger logger = LoggerFactory.getLogger(MockClusterInvoker.class);
@@ -104,6 +104,7 @@ public class MockClusterInvoker<T> implements Invoker<T> {
 
         List<Invoker<T>> mockInvokers = selectMockInvoker(invocation);
         if (mockInvokers == null || mockInvokers.isEmpty()) {
+            //如果没有mockInvoker则创建
             minvoker = (Invoker<T>) new MockInvoker(directory.getUrl());
         } else {
             minvoker = mockInvokers.get(0);
@@ -135,6 +136,7 @@ public class MockClusterInvoker<T> implements Invoker<T> {
      * Contract：
      * directory.list() will return a list of normal invokers if Constants.INVOCATION_NEED_MOCK is present in invocation, otherwise, a list of mock invokers will return.
      * if directory.list() returns more than one mock invoker, only one of them will be used.
+     * 加入要找mock invoker的标识，directory.list方法的MockInvokersSelector这个route会过滤过含有mock协议的invoker
      *
      * @param invocation
      * @return
@@ -147,6 +149,7 @@ public class MockClusterInvoker<T> implements Invoker<T> {
             ((RpcInvocation) invocation).setAttachment(Constants.INVOCATION_NEED_MOCK, Boolean.TRUE.toString());
             //directory will return a list of normal invokers if Constants.INVOCATION_NEED_MOCK is present in invocation, otherwise, a list of mock invokers will return.
             try {
+                //
                 invokers = directory.list(invocation);
             } catch (RpcException e) {
                 if (logger.isInfoEnabled()) {

@@ -30,9 +30,8 @@ import java.util.List;
 /**
  * Execute exactly once, which means this policy will throw an exception immediately in case of an invocation error.
  * Usually used for non-idempotent write operations
- *
+ * 失败立即抛出异常
  * <a href="http://en.wikipedia.org/wiki/Fail-fast">Fail-fast</a>
- *
  */
 public class FailfastClusterInvoker<T> extends AbstractClusterInvoker<T> {
 

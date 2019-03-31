@@ -36,6 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * 检查invocation，如果使用mock则执行mock逻辑，如果没有mock则抛异常：
  * 1如果mock仅是简单的return则return
  * 2如果mock为复杂类（继承自真正的调用的接口），创建mock类对象为该对象创建invoker，执行其invoke方法
+ * MockClusterInvoker中判断，是否mock，会创建本类实例
  */
 final public class MockInvoker<T> implements Invoker<T> {
     private final static ProxyFactory proxyFactory = ExtensionLoader.getExtensionLoader(ProxyFactory.class).getAdaptiveExtension();
@@ -87,7 +88,7 @@ final public class MockInvoker<T> implements Invoker<T> {
     }
 
     /**
-     * 1取出invocation中的mock信息，
+     * 1取出getUrl()中的mock信息，
      * 2是return a,则直接return a,不再调用下层invoker
      * 3是throw 则throw
      * 4以上都不是，则调用下层invoker,下层invoker由mock值确定，如果是default则找到DemoServiceMock（以调用方法：DemoService.sayHello为例）
@@ -166,6 +167,7 @@ final public class MockInvoker<T> implements Invoker<T> {
 
         Class<T> serviceType = (Class<T>) ReflectUtils.forName(url.getServiceInterface());
         T mockObject = (T) getMockObject(mockService, serviceType);
+        //proxyFactory.getInvoker一般在provider暴露服务时使用，consumer需要暴露mock类时也会在此处使用
         invoker = proxyFactory.getInvoker(mockObject, serviceType, url);
         if (mocks.size() < 10000) {
             mocks.put(mockService, invoker);
