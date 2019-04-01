@@ -27,6 +27,7 @@ import com.alibaba.dubbo.rpc.ProxyFactory;
 
 /**
  * DefaultMonitorFactory
+ * 去zk上寻找注册的Monitor provider,使用dubbo方式获取发送方的地址，使用dubbo rpc方式发送监控数据
  */
 public class DubboMonitorFactory extends AbstractMonitorFactory {
 
@@ -56,6 +57,7 @@ public class DubboMonitorFactory extends AbstractMonitorFactory {
         }
         url = url.addParameters(Constants.CLUSTER_KEY, "failsafe", Constants.CHECK_KEY, String.valueOf(false),
                 Constants.REFERENCE_FILTER_KEY, filter + "-monitor");
+        //去zk上寻找注册的Monitor provider,使用dubbo方式获取发送方的地址，使用dubbo rpc方式发送监控数据
         Invoker<MonitorService> monitorInvoker = protocol.refer(MonitorService.class, url);
         MonitorService monitorService = proxyFactory.getProxy(monitorInvoker);
         return new DubboMonitor(monitorInvoker, monitorService);

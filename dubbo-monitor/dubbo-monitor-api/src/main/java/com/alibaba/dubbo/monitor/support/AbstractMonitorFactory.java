@@ -30,14 +30,7 @@ import com.alibaba.dubbo.monitor.MonitorService;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -52,14 +45,23 @@ public abstract class AbstractMonitorFactory implements MonitorFactory {
     // monitor centers Map<RegistryAddress, Registry>
     private static final Map<String, Monitor> MONITORS = new ConcurrentHashMap<String, Monitor>();
 
+    /**
+     * 正在异步创建中的Monitor，ListenableFuture.get返回Monitor，创建完后，把Monitor放到上面的map中
+     */
     private static final Map<String, ListenableFuture<Monitor>> FUTURES = new ConcurrentHashMap<String, ListenableFuture<Monitor>>();
 
+    /**
+     * 异步创建Montior线程池
+     */
     private static final ExecutorService executor = new ThreadPoolExecutor(0, 10, 60L, TimeUnit.SECONDS, new SynchronousQueue<Runnable>(), new NamedThreadFactory("DubboMonitorCreator", true));
 
     public static Collection<Monitor> getMonitors() {
         return Collections.unmodifiableCollection(MONITORS.values());
     }
 
+    /**
+     * 异步创建Monitor，没创建好，返回null
+     */
     @Override
     public Monitor getMonitor(URL url) {
         url = url.setPath(MonitorService.class.getName()).addParameter(Constants.INTERFACE_KEY, MonitorService.class.getName());
@@ -93,6 +95,9 @@ public abstract class AbstractMonitorFactory implements MonitorFactory {
 
     protected abstract Monitor createMonitor(URL url);
 
+    /**
+     * 异步创建monitor线程
+     */
     class MonitorCreator implements Callable<Monitor> {
 
         private URL url;
@@ -108,6 +113,10 @@ public abstract class AbstractMonitorFactory implements MonitorFactory {
         }
     }
 
+    /**
+     * monitor创建好之后回调该listener
+     * 将创建好的monitor放入缓存map
+     */
     class MonitorListener implements Runnable {
 
         private String key;

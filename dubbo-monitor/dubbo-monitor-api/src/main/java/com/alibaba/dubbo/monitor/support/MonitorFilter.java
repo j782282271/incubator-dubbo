@@ -25,12 +25,7 @@ import com.alibaba.dubbo.common.utils.NetUtils;
 import com.alibaba.dubbo.monitor.Monitor;
 import com.alibaba.dubbo.monitor.MonitorFactory;
 import com.alibaba.dubbo.monitor.MonitorService;
-import com.alibaba.dubbo.rpc.Filter;
-import com.alibaba.dubbo.rpc.Invocation;
-import com.alibaba.dubbo.rpc.Invoker;
-import com.alibaba.dubbo.rpc.Result;
-import com.alibaba.dubbo.rpc.RpcContext;
-import com.alibaba.dubbo.rpc.RpcException;
+import com.alibaba.dubbo.rpc.*;
 import com.alibaba.dubbo.rpc.support.RpcUtils;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -45,6 +40,10 @@ public class MonitorFilter implements Filter {
 
     private static final Logger logger = LoggerFactory.getLogger(MonitorFilter.class);
 
+    /**
+     * key：精确到方法
+     * value：并发调用数量，即当前正在被调用的数量，开始+1，完成减1
+     */
     private final ConcurrentMap<String, AtomicInteger> concurrents = new ConcurrentHashMap<String, AtomicInteger>();
 
     private MonitorFactory monitorFactory;
@@ -88,7 +87,9 @@ public class MonitorFilter implements Filter {
             String group = invoker.getUrl().getParameter(Constants.GROUP_KEY);
             String version = invoker.getUrl().getParameter(Constants.VERSION_KEY);
             URL url = invoker.getUrl().getUrlParameter(Constants.MONITOR_KEY);
+            //异步创建，即使没创成功也不会影响性能
             Monitor monitor = monitorFactory.getMonitor(url);
+            //为null则返回，忽略本次统计
             if (monitor == null) {
                 return;
             }
@@ -96,13 +97,15 @@ public class MonitorFilter implements Filter {
             String remoteKey;
             String remoteValue;
             if (Constants.CONSUMER_SIDE.equals(invoker.getUrl().getParameter(Constants.SIDE_KEY))) {
-                // ---- for service consumer ----
+                //本服务为consumer
                 localPort = 0;
+                //远端服务为provider
                 remoteKey = MonitorService.PROVIDER;
                 remoteValue = invoker.getUrl().getAddress();
             } else {
-                // ---- for service provider ----
+                //本服务为Provider
                 localPort = invoker.getUrl().getPort();
+                //远端服务为consumer
                 remoteKey = MonitorService.CONSUMER;
                 remoteValue = remoteHost;
             }

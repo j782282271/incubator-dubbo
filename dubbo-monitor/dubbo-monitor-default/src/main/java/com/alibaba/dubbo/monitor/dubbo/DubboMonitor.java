@@ -27,16 +27,12 @@ import com.alibaba.dubbo.rpc.Invoker;
 
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * DubboMonitor
+ * 默认一分钟收集一次统计数据
  */
 public class DubboMonitor implements Monitor {
 
@@ -54,6 +50,9 @@ public class DubboMonitor implements Monitor {
 
     private final long monitorInterval;
 
+    /**
+     * 记录一分钟内的统计数据
+     */
     private final ConcurrentMap<Statistics, AtomicReference<long[]>> statisticsMap = new ConcurrentHashMap<Statistics, AtomicReference<long[]>>();
 
     public DubboMonitor(Invoker<MonitorService> monitorInvoker, MonitorService monitorService) {
@@ -124,6 +123,8 @@ public class DubboMonitor implements Monitor {
                     update[4] = 0;
                     update[5] = 0;
                 } else {
+                    //防止清空新来的统计，要减去，1分钟分送一次，本次执行失败，下次无法执行。所以不会存在没减掉之后的发送
+                    //最大值记录的是启动以来的最大值，不是1分钟之内的最大值
                     update[0] = current[0] - success;
                     update[1] = current[1] - failure;
                     update[2] = current[2] - input;
@@ -172,7 +173,9 @@ public class DubboMonitor implements Monitor {
                 update[1] = current[1] + failure;
                 update[2] = current[2] + input;
                 update[3] = current[3] + output;
+                //总耗时
                 update[4] = current[4] + elapsed;
+                //粗略的计算并发数
                 update[5] = (current[5] + concurrent) / 2;
                 update[6] = current[6] > input ? current[6] : input;
                 update[7] = current[7] > output ? current[7] : output;

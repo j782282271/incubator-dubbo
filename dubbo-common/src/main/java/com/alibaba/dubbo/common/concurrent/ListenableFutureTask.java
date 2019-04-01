@@ -25,6 +25,10 @@ import java.util.concurrent.FutureTask;
  * interface.  Unlike {@code FutureTask}, {@code ListenableFutureTask} does not
  * provide an overrideable {@link FutureTask#done() done()} method.  For similar
  * functionality, call {@link #addListener}.
+ * 1本类继承自Runnnable，需要被放到线程池中执行
+ * 2构造函数需要一个Callable（Runnable），实际线程执行的是Callable该Runnable
+ * 3执行前添加listener(Runnable),执行完毕后会调用done()方法，其中调用listener
+ * 4listener实际被放到ExecutionList中，调用其execute执行其内部listener
  */
 public class ListenableFutureTask<V> extends FutureTask<V>
         implements ListenableFuture<V> {
