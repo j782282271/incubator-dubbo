@@ -1,2 +1,7 @@
-6.1启动时检查check
-  关于<dubbo:registry check="false" />
+6.1启动时检查check，关于<dubbo:registry check="false" />
+  RegistryProtocol.doRefer方法会调用一下两个方法：
+  1）registry.register（此方法参数url中显示指定check=false）也就是这个方法不需要检查注册中心(下文统称zk)是否可用
+  2）directory.subscribe底层也是调用registry.register（根据）此方法参数即根据配置生成的url,根据xml中配置是否check注册中心是否可达
+  代码体现：ZookeeperRegistry继承自FailbackRegistry，其中register、subscribe方法都会检查check参数，决定在连不上zk时直接抛异常还是不断重试
+
+6.2  
