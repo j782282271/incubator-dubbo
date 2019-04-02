@@ -1,0 +1,2 @@
+6.1启动时检查check
+  关于<dubbo:registry check="false" />
