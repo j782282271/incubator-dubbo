@@ -22,14 +22,10 @@ import com.alibaba.dubbo.common.threadlocal.NamedInternalThreadFactory;
 import com.alibaba.dubbo.common.threadpool.ThreadPool;
 import com.alibaba.dubbo.common.threadpool.support.AbortPolicyWithReport;
 
-import java.util.concurrent.Executor;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 /**
- * Creates a thread pool that reuses a fixed number of threads
+ * 启动时即创建固定大小的线程数，不可伸缩
  *
  * @see java.util.concurrent.Executors#newFixedThreadPool(int)
  */

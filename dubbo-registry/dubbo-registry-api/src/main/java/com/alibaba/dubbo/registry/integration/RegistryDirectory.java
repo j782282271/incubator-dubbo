@@ -40,6 +40,9 @@ import java.util.*;
  * RegistryDirectory
  * consumer端监听和注册zk变化交由此类完成，与provider端不同，provider端的zk注册于监听直接由RegistryProtocol完成
  * 记录了consumer所需要的invoker信息，当zk目录urls发生变化时通知本类，修改invoker
+ * <p>
+ * clusterInvoker由RegistryDirectory外部创建，即clusterInvoker创建依赖RegistryDirectory，RegistryDirectory内部会使用InvokerDelegate这种invoker作为真正的invoker
+ * 提供给clusterInvoker这种InvokerDelegate列表供clusterInvoker选择
  */
 public class RegistryDirectory<T> extends AbstractDirectory<T> implements NotifyListener {
 
@@ -301,6 +304,9 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
      * ******methodName2--> invoker1(group=a)、invoker2(group=b)、invoker3(group=c)    3个元素的list
      * 输出：methodName1--> cluster.join(invoker1,invoker2)、cluster.join(invoker3)    2个元素的list
      * ******methodName2--> invoker1(group=a)、invoker2(group=b)、invoker3(group=c)    3个元素的list
+     * multiGroup为true，即consumer配置了group="a,b"或者group="*"这种的多个组的provider，则methodMap中可能含有不止一个group的provider
+     * 此时需要将invoker分组,用cluster.join一个组内的invoker为一个invoker，即让一个组内的invoker（一个组可能含有多个invoker即多个provider）
+     * 作为整体和其它组的整体inMvoker之间进行loadbalance和router
      */
     private Map<String, List<Invoker<T>>> toMergeMethodInvokerMap(Map<String, List<Invoker<T>>> methodMap) {
         Map<String, List<Invoker<T>>> result = new HashMap<String, List<Invoker<T>>>();

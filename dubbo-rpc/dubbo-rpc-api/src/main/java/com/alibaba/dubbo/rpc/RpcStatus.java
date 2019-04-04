@@ -31,6 +31,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * @see com.alibaba.dubbo.rpc.filter.ActiveLimitFilter
  * @see com.alibaba.dubbo.rpc.filter.ExecuteLimitFilter
  * @see com.alibaba.dubbo.rpc.cluster.loadbalance.LeastActiveLoadBalance
+ * 监控使用自己的map存储数据
+ * LeastActiveBalance使用本类计数
  */
 public class RpcStatus {
 

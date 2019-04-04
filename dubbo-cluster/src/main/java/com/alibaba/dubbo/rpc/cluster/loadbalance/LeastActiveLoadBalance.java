@@ -47,7 +47,7 @@ public class LeastActiveLoadBalance extends AbstractLoadBalance {
         boolean sameWeight = true; // 是否所有权重相同
         for (int i = 0; i < length; i++) {
             Invoker<T> invoker = invokers.get(i);
-            int active = RpcStatus.getStatus(invoker.getUrl(), invocation.getMethodName()).getActive();// 活跃数
+            int active = RpcStatus.getStatus(invoker.getUrl(), invocation.getMethodName()).getActive();// 活跃数,
             int afterWarmup = getWeight(invoker, invocation); //  // 权重
             if (leastActive == -1 || active < leastActive) { // 发现更小的活跃数，重新开始
                 leastActive = active; // 记录最小活跃数
