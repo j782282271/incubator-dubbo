@@ -240,6 +240,8 @@ class CallbackServiceCodec {
         }
     }
 
+    //第一次consumer向provider注册listener时，发现自己有参数为callback（根据provider中的参数确定）
+    //则将自己的callback暴露为exporter，这个过程和provider暴露自己大致相同
     public static Object encodeInvocationArgument(Channel channel, RpcInvocation inv, int paraIndex) throws IOException {
         // get URL directly
         URL url = inv.getInvoker() == null ? null : inv.getInvoker().getUrl();
@@ -250,6 +252,7 @@ class CallbackServiceCodec {
             case CallbackServiceCodec.CALLBACK_NONE:
                 return args[paraIndex];
             case CallbackServiceCodec.CALLBACK_CREATE:
+                //将引用id存入到attach中，provider refer的时候回获取该值，根据这个值refer这个consumer端创建的exporter
                 inv.setAttachment(INV_ATT_CALLBACK_KEY + paraIndex, exportOrunexportCallbackService(channel, url, pts[paraIndex], args[paraIndex], true));
                 return null;
             case CallbackServiceCodec.CALLBACK_DESTROY:
@@ -260,6 +263,8 @@ class CallbackServiceCodec {
         }
     }
 
+    //provider第一次收到addListener调用请求后，会进入到这里发现其第二个参数为callback,执行referOrdestroyCallbackService
+    //即refer consumer端暴露的exporter
     public static Object decodeInvocationArgument(Channel channel, RpcInvocation inv, Class<?>[] pts, int paraIndex, Object inObject) throws IOException {
         // if it's a callback, create proxy on client side, callback interface on client side can be invoked through channel
         // need get URL from channel and env when decode

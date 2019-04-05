@@ -260,7 +260,8 @@ public class DubboProtocol extends AbstractProtocol {
     private void openServer(URL url) {
         // find server.
         String key = url.getAddress();
-        //client can export a service which's only for server to invoke
+        //client can export a service which's only for server to invoke,
+        // callback也会export，但是IS_SERVER_KEY==false,所以不会真正的创建server
         boolean isServer = url.getParameter(Constants.IS_SERVER_KEY, true);
         if (isServer) {
             ExchangeServer server = serverMap.get(key);

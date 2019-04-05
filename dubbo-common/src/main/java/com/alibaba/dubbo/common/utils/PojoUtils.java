@@ -16,29 +16,8 @@
  */
 package com.alibaba.dubbo.common.utils;
 
-import java.lang.reflect.Array;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Proxy;
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.IdentityHashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.TreeMap;
-import java.util.WeakHashMap;
+import java.lang.reflect.*;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -92,6 +71,25 @@ public class PojoUtils {
         return generalize(pojo, new IdentityHashMap<Object, Object>());
     }
 
+    public static class Bean {
+        public String a = "a";
+        public String b = "b";
+    }
+
+    public static void main(String[] args) {
+        Map<Object, Object> history = new HashMap<Object, Object>();
+        Object res = generalize(new Bean(), history);
+        /**
+         * res是一个map：
+         * "a"->"a"
+         * "a"->"a"
+         * "class" -> "com.alibaba.dubbo.common.utils.PojoUtils$Bean"
+         * */
+    }
+
+    /**
+     * 将bean转为map，带有class的key
+     */
     @SuppressWarnings("unchecked")
     private static Object generalize(Object pojo, Map<Object, Object> history) {
         if (pojo == null) {

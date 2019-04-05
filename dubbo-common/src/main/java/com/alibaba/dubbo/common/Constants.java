@@ -63,6 +63,7 @@ public class Constants {
 
     public static final String DEFAULT_DUBBO_PROPERTIES = "dubbo.properties";
 
+    //wiki：http://dubbo.apache.org/zh-cn/docs/user/demos/async-call.html
     public static final String SENT_KEY = "sent";
 
     public static final boolean DEFAULT_SENT = false;
@@ -489,7 +490,7 @@ public class Constants {
     public static final String CALLBACK_SERVICE_KEY = "callback.service.instid";
 
     /**
-     * The limit of callback service instances for one interface on every client
+     * 每个客户端同一个接口 callback服务实例的限制
      */
     public static final String CALLBACK_INSTANCES_LIMIT_KEY = "callbacks";
 

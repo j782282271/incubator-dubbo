@@ -22,17 +22,8 @@ import com.alibaba.dubbo.common.threadlocal.InternalThreadLocal;
 import com.alibaba.dubbo.common.utils.NetUtils;
 
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.*;
+import java.util.concurrent.*;
 
 /**
  * Thread local context. (API, ThreadLocal, ThreadSafe)
@@ -55,6 +46,11 @@ public class RpcContext {
             return new RpcContext();
         }
     };
+
+    /**
+     * SERVER_LOCAL这个InternalThreadLocal其中的RpcContext只保存了attachments
+     * provider用来保存server处理过程中产生的attachments，返回给consumer，见contextFilter
+     */
     private static final InternalThreadLocal<RpcContext> SERVER_LOCAL = new InternalThreadLocal<RpcContext>() {
         @Override
         protected RpcContext initialValue() {

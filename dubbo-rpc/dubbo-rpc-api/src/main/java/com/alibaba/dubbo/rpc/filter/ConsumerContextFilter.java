@@ -19,14 +19,7 @@ package com.alibaba.dubbo.rpc.filter;
 import com.alibaba.dubbo.common.Constants;
 import com.alibaba.dubbo.common.extension.Activate;
 import com.alibaba.dubbo.common.utils.NetUtils;
-import com.alibaba.dubbo.rpc.Filter;
-import com.alibaba.dubbo.rpc.Invocation;
-import com.alibaba.dubbo.rpc.Invoker;
-import com.alibaba.dubbo.rpc.Result;
-import com.alibaba.dubbo.rpc.RpcContext;
-import com.alibaba.dubbo.rpc.RpcException;
-import com.alibaba.dubbo.rpc.RpcInvocation;
-import com.alibaba.dubbo.rpc.RpcResult;
+import com.alibaba.dubbo.rpc.*;
 
 /**
  * ConsumerContextInvokerFilter
@@ -50,6 +43,7 @@ public class ConsumerContextFilter implements Filter {
             RpcContext.getServerContext().setAttachments(result.getAttachments());
             return result;
         } finally {
+            //清除local的attach，因为attach已经发给provider，不再需要了
             RpcContext.getContext().clearAttachments();
         }
     }

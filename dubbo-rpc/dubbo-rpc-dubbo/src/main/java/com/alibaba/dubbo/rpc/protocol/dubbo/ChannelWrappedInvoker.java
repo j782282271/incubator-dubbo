@@ -32,7 +32,8 @@ import java.net.InetSocketAddress;
 
 /**
  * Wrap the existing invoker on the channel.
- * CallbackServiceCodec会用到此类
+ * CallbackServiceCodec会用到此类，将consumer连接provider创建的channel封装为client
+ * 当provider需要调用consumer的的callback的时候，直接调用该invoker，该invoker会调用channel进行通信
  */
 class ChannelWrappedInvoker<T> extends AbstractInvoker<T> {
 
@@ -44,6 +45,8 @@ class ChannelWrappedInvoker<T> extends AbstractInvoker<T> {
         super(serviceType, url, new String[]{Constants.GROUP_KEY, Constants.TOKEN_KEY, Constants.TIMEOUT_KEY});
         this.channel = channel;
         this.serviceKey = serviceKey;
+        //new ChannelWrapper(this.channel)将channel封装为client了
+        //这样就不需要connect server去创建client了，只需要把channel当做client即可
         this.currentClient = new HeaderExchangeClient(new ChannelWrapper(this.channel), false);
     }
 

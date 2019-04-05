@@ -16,14 +16,15 @@
  */
 package com.alibaba.dubbo.demo.consumer;
 
+import com.alibaba.dubbo.demo.CallbackListener;
+import com.alibaba.dubbo.demo.CallbackService;
 import com.alibaba.dubbo.demo.DemoService;
 import com.alibaba.dubbo.demo.DemoTestService;
-import com.alibaba.dubbo.demo.ValBean;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 public class Consumer {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         //Prevent to get IPV6 address,this way only work in debug mode
         //But you can pass use -Djava.net.preferIPv4Stack=true,then it work well whether in debug mode or not
         System.setProperty("java.net.preferIPv4Stack", "true");
@@ -31,13 +32,25 @@ public class Consumer {
         context.start();
         DemoService demoService = (DemoService) context.getBean("demoService"); // get remote service proxy
         DemoTestService demoTestService = (DemoTestService) context.getBean("demoTestService"); // get remote service proxy
+//        GenericService genService = (GenericService) context.getBean("genService"); // get remote service proxy
+        CallbackService callbackService = (CallbackService) context.getBean("callbackService");
+        callbackService.addListener("foo.bar", new CallbackListener() {
+            public void changed(String msg) {
+                System.out.println("callback1:" + msg);
+            }
+        });
+        Thread.sleep(1000 * 100);
         while (true) {
             try {
                 Thread.sleep(1000);
-                String hello = demoService.sayHello("world"); // call remote method
-                demoTestService.speak(new ValBean());
-                System.out.println(hello); // get result
-
+//                String hello = demoService.sayHello("world"); // call remote method
+//                demoTestService.speak(new ValBean());
+//                System.out.println(hello); // get result
+//                Object result = genService.$invoke("sayHello", new String[]{"java.lang.String"}, new Object[]{"World"});
+//                System.out.println(result); // get result
+//                demoTestService.speak(new ValBean());
+//                Future<String> future = RpcContext.getContext().getFuture();
+//                System.out.println(future.get());
             } catch (Throwable throwable) {
                 throwable.printStackTrace();
             }
