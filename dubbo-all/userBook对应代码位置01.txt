@@ -166,4 +166,5 @@
       AccessLogFilter   
 
 6.41）服务容器
+6.42）ReferenceConfig缓存
    
