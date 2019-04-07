@@ -35,6 +35,9 @@ import java.util.Set;
 
 /**
  * callback service helper
+ * consumer发现自己要调用注册callback的接口，则将callback生成id，并暴露该callback(暴露path带有id）并将id放入attach中发给provider
+ * provider发现consumer调用自己的注册callback接口，则根据callback类名+请求attch中的id创建proxy（继承自callback类），将该proxy代替真正的callback
+ * 当调用callback实际调用的是proxy，proxy底层会请求对应consumer的channel，将根据callback+id发过去，consumer会找到对应的export,调用实际的listener
  */
 class CallbackServiceCodec {
     private static final Logger logger = LoggerFactory.getLogger(CallbackServiceCodec.class);

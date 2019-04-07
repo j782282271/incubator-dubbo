@@ -16,10 +16,9 @@
  */
 package com.alibaba.dubbo.demo.consumer;
 
-import com.alibaba.dubbo.demo.CallbackListener;
-import com.alibaba.dubbo.demo.CallbackService;
 import com.alibaba.dubbo.demo.DemoService;
 import com.alibaba.dubbo.demo.DemoTestService;
+import com.alibaba.dubbo.demo.ValBean;
 import org.springframework.context.support.ClassPathXmlApplicationContext;
 
 public class Consumer {
@@ -33,16 +32,19 @@ public class Consumer {
         DemoService demoService = (DemoService) context.getBean("demoService"); // get remote service proxy
         DemoTestService demoTestService = (DemoTestService) context.getBean("demoTestService"); // get remote service proxy
 //        GenericService genService = (GenericService) context.getBean("genService"); // get remote service proxy
-        CallbackService callbackService = (CallbackService) context.getBean("callbackService");
-        callbackService.addListener("foo.bar", new CallbackListener() {
-            public void changed(String msg) {
-                System.out.println("callback1:" + msg);
-            }
-        });
-        Thread.sleep(1000 * 100);
+//        CallbackService callbackService = (CallbackService) context.getBean("callbackService");
+//        callbackService.addListener("foo.bar", new CallbackListener() {
+//            public void changed(String msg) {
+//                System.out.println("callback1:" + msg);
+//            }
+//        });
+//        Thread.sleep(1000 * 100);
         while (true) {
             try {
                 Thread.sleep(1000);
+                String res = demoTestService.speak(new ValBean());
+                System.out.print(res);
+//                demoService.sayHello("world");
 //                String hello = demoService.sayHello("world"); // call remote method
 //                demoTestService.speak(new ValBean());
 //                System.out.println(hello); // get result

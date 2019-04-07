@@ -65,12 +65,20 @@ public class DubboShutdownHook extends Thread {
         if (!destroyed.compareAndSet(false, true)) {
             return;
         }
-        // destroy all the registries
+        //关闭所有注册，取消注册，这样上游所有调用本服务的consumer就可以自动剔除本服务调用
+        //根据注册中心改掉其他服务
         AbstractRegistryFactory.destroyAll();
         // destroy all the protocols
         ExtensionLoader<Protocol> loader = ExtensionLoader.getExtensionLoader(Protocol.class);
         for (String protocolName : loader.getLoadedExtensions()) {
             try {
+                //关闭所有协议，以dubboProtocol为例，协议关闭分为两步：
+                //1关闭本服务的所有provider，即关闭server,server关闭以HeaderExchangeServer为例，分为以下3步：
+                //  1.1）要close，通知连接本server的所有channel一个事件：Request.READONLY_EVENT，client收到该事件后，将channel放置一个Request.READONLY_EVENT
+                //Request.READONLY_EVENT属性，存在该属性，client则认为该provider isAvaliable==false
+                //  1.2）如果存在channel没关闭且没达到超时间，则等待到超时时间（ConfigUtils.getServerShutdownTimeout）
+                //  1.3）停止心跳、关闭所有channel（nettyServer负责）
+                //2关闭本服务的所有consumer，即client的channel，当该consumer的channel仍活跃，即有请求未返回，则等待其返回，然后关闭，或者超时强制关闭
                 Protocol protocol = loader.getLoadedExtension(protocolName);
                 if (protocol != null) {
                     protocol.destroy();

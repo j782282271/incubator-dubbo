@@ -69,8 +69,101 @@
      代码：InjvmProtocol.isInjvmRefer判断是否是本地引用
      
 6.23）参数回调：consumer向provider注册监听事件，等待provider回调，就像zk监听节点一样等待zkserver的回调通知
-      
+      代码：CallbackServiceCodec
 6.24）事件通知
-6.25）本地存根     
+		<bean id ="demoCallback" class = "org.apache.dubbo.callback.implicit.NofifyImpl" />
+		<dubbo:reference id="demoService" interface="org.apache.dubbo.callback.implicit.IDemoService" version="1.0.0" group="cn" >
+		      <dubbo:method name="get" async="true" onreturn = "demoCallback.onreturn" onthrow="demoCallback.onthrow" />
+		</dubbo:reference>
+		MethodConfig spring parser完成即将demoCallback解析为对应的bean，将onreturn解析为方法名
+		代码：ReferenceConfig.checkAndConvertImplicitConfig,根据demoCallback实例和onreturn方法名创建method放到attributes这个map中（key可以为全局唯一的任何接口不重复）
+		将attributes放到这里：StaticContext.getSystemContext()，这是全局唯一的一个map，所有线程共享。
+		FutureFilter，从StaticContext.getSystemContext()中找到onreturn方法，return前调用onreturn方法
+6.25）本地存根    
+   StubProxyFactoryWrapper  provider  consumer都会使用到stub
+
+6.26）本地伪装，mock，通常用于服务降级，比如某验权服务，当服务提供方全部挂掉后，客户端不抛出异常，而是通过 Mock 数据返回授权失败。
+     当调用失败后，会调用本地伪装的方法
+     <dubbo:reference interface="com.foo.BarService" mock="true" />
+     或者<dubbo:reference interface="com.foo.BarService" mock="com.foo.BarServiceMock" />
+     public class BarServiceMock implements BarService {
+       public String sayHello(String name) {
+        // 你可以伪造容错数据，此方法只在出现RpcException时被执行
+        return "容错数据";
+       }
+     }
      
+     代码：MockClusterInvoker在调用provider失败后，会选择MockInvoker，其中会处理mock值
+
+6.27）延迟暴露
+   所有服务都将在 Spring 初始化完成后进行暴露，如果你不需要延迟暴露服务，无需配置 delay。
+   Spring 初始化完成后,延迟 5 秒暴露服务：<dubbo:service delay="5000" />
+   代码：ServiceConfig.exoprt方法
+   
+6.28）并发控制，executes 
+    ExecuteLimitFilter为provider的并发限制filter：并发数超限会直接报错
+    ActiveLimitFilter为consumer的并发限制filter：consumer端线程数量超过限制，则同步等待
+   
+6.29）连接控制
+    限制服务器端接受的连接不能超过 10 个：<dubbo:protocol name="dubbo" accepts="10" />
+    限制客户端服务使用连接不能超过 10 个：<dubbo:service interface="com.foo.BarService" connections="10" />
+    如果 <dubbo:service> 和 <dubbo:reference> 都配了 connections，<dubbo:reference> 优先
+
+6.30）连接控制：服务端连接控制、客户端连接控制
+    1）AbstractServer创建时解析accepts，如果channel数量大于该值则不允许连接
+    2）限制客户端服务使用连接不能超过 10 个设置：
+    <dubbo:reference interface="com.foo.BarService" connections="10" />
+    以上设置完毕后，刚启动时BarService这个consumerProxy一次就创建10个connection,每次调用的时候选择一个connection
+    
+6.31）延迟连接
+		延迟连接用于减少长连接数。当有调用发起时，再创建长连接
+		<dubbo:protocol name="dubbo" lazy="true" />    
+		如果lazy=true，DubboProtocol.initClient时回创建LazyConnectExchangeClient，只有在send消息的之前才会连接
+
+6.32）粘滞连接
+   AbstractClusterInvoker.stickyInvoker属性记录了第一次调用的invoker，以后一直用该invoker调用
+   
+6.33）令牌验证
+   通过令牌验证在注册中心控制权限，以决定要不要下发令牌给消费者，可以防止消费者绕过注册中心访问提供者，
+   另外通过注册中心可灵活改变授权方式，而不需修改或升级提供者。
+   随机token：<dubbo:provider interface="com.foo.BarService" token="true" />
+   固定token：<dubbo:provider interface="com.foo.BarService" token="123456" />
+   provider ServiceConfig.doExportUrlsFor1Protocol解析token，并把token放url参数中暴露到zk上
+   consumer从zk获取到provider信息包括，token，consuemr向provider发RpcInvocation请求时会将token放到attach上
+   provider收到请求，会对比自己的token与attch中的token是否相同，不同不允许访问
+   
+6.34）路由规则
+   2.6.x与之后的版本不同，读文档
+
+6.35）配置规则      
+   2.6.x与之后的版本不同，读文档
+   
+6.36）服务降级
+   读文档，和本地伪装一样，mock
+
+6.37）优雅停机
+   Dubbo 是通过 JDK 的 ShutdownHook 来完成优雅停机的，所以如果用户使用 kill -9 PID 等强制关闭指令，是不会执行优雅停机的，只有通过 kill PID 时，才会执行。
+   DubboShutdownHook其中会执行：
+   1）AbstractRegistryFactory.destroyAll();关闭所有注册，取消注册，
+      这样上游所有调用本服务的consumer就可以自动剔除本服务调用根据注册中心改掉其他服务
+   2）关闭所有协议，以dubboProtocol为例，协议关闭分为两步：
+      1关闭本服务的所有provider，即关闭server,server关闭以HeaderExchangeServer为例，分为以下3步：
+        1.1）要close，通知连接本server的所有channel一个事件：Request.READONLY_EVENT，client收到该事件后，将channel放置一个Request.READONLY_EVENT
+            Request.READONLY_EVENT属性，存在该属性，client则认为该provider isAvaliable==false
+        1.2）如果存在channel没关闭且没达到超时间，则等待到超时时间（ConfigUtils.getServerShutdownTimeout）
+        1.3）停止心跳、关闭所有channel（nettyServer负责）
+      2关闭本服务的所有consumer，即client的channel，以HeaderExchangeChannel为例，当该cosnumer的channel仍活跃，即有请求未返回，则等待其返回，然后关闭，或者超时强制关闭
+   获取关闭超时时间：configUtils.getServerShutdownTimeout方法，其中调用Constants.SHUTDOWN_WAIT_KEY
+   
+6.38）主机绑定
+   缺省主机 IP 查找顺序：
+    通过 LocalHost.getLocalHost() 获取本机地址。
+    如果是 127.* 等 loopback 地址，则扫描各网卡，获取网卡 IP。  
+
+6.39）日志适配 ：LoggerFactory
+6.40）访问日志：<dubbo:protocol accesslog="true" />和自己项目其他日志输出到相同位置
+      <dubbo:protocol accesslog="http://10.20.160.198/wiki/display/dubbo/foo/bar.log" />输出到指定位置
+      AccessLogFilter   
+
+6.41）服务容器
    

@@ -377,7 +377,7 @@ public class Constants {
 
     public static final String CHANNEL_READONLYEVENT_SENT_KEY = "channel.readonly.sent";
     //provider关闭时通知client，只读事件，见HeaderExchangeServer.close
-    public static final String CHANNEL_SEND_READONLYEVENT_KEY = "channel.readonly.send";
+    public static final String  CHANNEL_SEND_READONLYEVENT_KEY = "channel.readonly.send";
 
     public static final String COUNT_PROTOCOL = "count";
 

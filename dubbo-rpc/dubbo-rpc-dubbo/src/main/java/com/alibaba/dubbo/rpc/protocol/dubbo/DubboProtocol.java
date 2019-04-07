@@ -440,6 +440,7 @@ public class DubboProtocol extends AbstractProtocol {
 
     @Override
     public void destroy() {
+        //关闭本服务的所有provider
         for (String key : new ArrayList<String>(serverMap.keySet())) {
             ExchangeServer server = serverMap.remove(key);
             if (server != null) {
@@ -447,6 +448,11 @@ public class DubboProtocol extends AbstractProtocol {
                     if (logger.isInfoEnabled()) {
                         logger.info("Close dubbo server: " + server.getLocalAddress());
                     }
+                    /**server关闭以HeaderExchangeServer为例，分为以下3步：
+                     *1）要close，通知channel，只读事件
+                     *2如果存在channel没关闭且没达到超时间，则等待到超时时间（ConfigUtils.getServerShutdownTimeout）
+                     *3）停止心跳、关闭所有channel（nettyServer负责）
+                     * */
                     server.close(ConfigUtils.getServerShutdownTimeout());
                 } catch (Throwable t) {
                     logger.warn(t.getMessage(), t);
@@ -454,6 +460,8 @@ public class DubboProtocol extends AbstractProtocol {
             }
         }
 
+        //关闭本服务的所有consumer，以HeaderExchangeChannel为例
+        //当该cosnumer的channel仍活跃，即有请求未返回，则等待其返回，然后关闭，或者超时强制关闭
         for (String key : new ArrayList<String>(referenceClientMap.keySet())) {
             ExchangeClient client = referenceClientMap.remove(key);
             if (client != null) {

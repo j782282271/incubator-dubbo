@@ -74,6 +74,7 @@ public class AccessLogFilter implements Filter {
 
     private static final long LOG_OUTPUT_INTERVAL = 5000;
 
+    //key为文件名
     private final ConcurrentMap<String, Set<String>> logQueue = new ConcurrentHashMap<String, Set<String>>();
 
     private final ScheduledExecutorService logScheduled = Executors.newScheduledThreadPool(2, new NamedThreadFactory("Dubbo-Access-Log", true));

@@ -19,15 +19,12 @@ package com.alibaba.dubbo.rpc.filter;
 import com.alibaba.dubbo.common.Constants;
 import com.alibaba.dubbo.common.URL;
 import com.alibaba.dubbo.common.extension.Activate;
-import com.alibaba.dubbo.rpc.Filter;
-import com.alibaba.dubbo.rpc.Invocation;
-import com.alibaba.dubbo.rpc.Invoker;
-import com.alibaba.dubbo.rpc.Result;
-import com.alibaba.dubbo.rpc.RpcException;
-import com.alibaba.dubbo.rpc.RpcStatus;
+import com.alibaba.dubbo.rpc.*;
 
 /**
  * LimitInvokerFilter
+ * ExecuteLimitFilter为provider的并发限制filter：并发数超限会直接报错
+ * ActiveLimitFilter为consumer的并发限制filter：consumer端线程数量超过限制，则同步等待
  */
 @Activate(group = Constants.CONSUMER, value = Constants.ACTIVES_KEY)
 public class ActiveLimitFilter implements Filter {
@@ -43,6 +40,7 @@ public class ActiveLimitFilter implements Filter {
             long start = System.currentTimeMillis();
             long remain = timeout;
             int active = count.getActive();
+            //数量超过限制需要同步等待
             if (active >= max) {
                 synchronized (count) {
                     while ((active = count.getActive()) >= max) {

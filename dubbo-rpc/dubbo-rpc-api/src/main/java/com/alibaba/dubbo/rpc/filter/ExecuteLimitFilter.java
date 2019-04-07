@@ -19,17 +19,15 @@ package com.alibaba.dubbo.rpc.filter;
 import com.alibaba.dubbo.common.Constants;
 import com.alibaba.dubbo.common.URL;
 import com.alibaba.dubbo.common.extension.Activate;
-import com.alibaba.dubbo.rpc.Filter;
-import com.alibaba.dubbo.rpc.Invocation;
-import com.alibaba.dubbo.rpc.Invoker;
-import com.alibaba.dubbo.rpc.Result;
-import com.alibaba.dubbo.rpc.RpcException;
-import com.alibaba.dubbo.rpc.RpcStatus;
+import com.alibaba.dubbo.rpc.*;
 
 import java.util.concurrent.Semaphore;
 
 /**
  * ThreadLimitInvokerFilter
+ * 并发控制：
+ * ExecuteLimitFilter为provider的并发限制filter：并发数超限会直接报错
+ * ActiveLimitFilter为consumer的并发限制filter：consumer端线程数量超过限制，则同步等待
  */
 @Activate(group = Constants.PROVIDER, value = Constants.EXECUTES_KEY)
 public class ExecuteLimitFilter implements Filter {
@@ -49,7 +47,7 @@ public class ExecuteLimitFilter implements Filter {
              * use semaphore for concurrency control (to limit thread number)
              */
             executesLimit = count.getSemaphore(max);
-            if(executesLimit != null && !(acquireResult = executesLimit.tryAcquire())) {
+            if (executesLimit != null && !(acquireResult = executesLimit.tryAcquire())) {
                 throw new RpcException("Failed to invoke method " + invocation.getMethodName() + " in provider " + url + ", cause: The service using threads greater than <dubbo:service executes=\"" + max + "\" /> limited.");
             }
         }
@@ -68,7 +66,7 @@ public class ExecuteLimitFilter implements Filter {
             }
         } finally {
             RpcStatus.endCount(url, methodName, System.currentTimeMillis() - begin, isSuccess);
-            if(acquireResult) {
+            if (acquireResult) {
                 executesLimit.release();
             }
         }
