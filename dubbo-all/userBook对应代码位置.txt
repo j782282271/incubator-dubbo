@@ -1,7 +1,143 @@
-6.1����ʱ���check������<dubbo:registry check="false" />
-  RegistryProtocol.doRefer���������һ������������
-  1��registry.register���˷�������url����ʾָ��check=false��Ҳ���������������Ҫ���ע������(����ͳ��zk)�Ƿ����
-  2��directory.subscribe�ײ�Ҳ�ǵ���registry.register�����ݣ��˷��������������������ɵ�url,����xml�������Ƿ�checkע�������Ƿ�ɴ�
-  �������֣�ZookeeperRegistry�̳���FailbackRegistry������register��subscribe����������check������������������zkʱֱ�����쳣���ǲ�������
+clusterInvoker由RegistryDirectory外部创建，即clusterInvoker创建依赖RegistryDirectory，RegistryDirectory内部会使用InvokerDelegate这种invoker作为真正的invoker
+提供给clusterInvoker这种InvokerDelegate列表供clusterInvoker选择
 
-6.2  
+6.1）启动时检查check，关于<dubbo:registry check="false" />
+  RegistryProtocol.doRefer方法会调用一下两个方法：
+  1）registry.register（此方法参数url中显示指定check=false）也就是这个方法不需要检查注册中心(下文统称zk)是否可用
+  2）directory.subscribe底层也是调用registry.register（根据）此方法参数即根据配置生成的url,根据xml中配置是否check注册中心是否可达
+  代码体现：ZookeeperRegistry继承自FailbackRegistry，其中register、subscribe方法都会检查check参数，决定在连不上zk时直接抛异常还是不断重试
+
+6.2）集群容错
+  6.2.1）<dubbo:service retries="2" />：
+         FailoverClusterInvoker.doInvoke中Constants.RETRIES_KEY。感觉类名上配置的Constants.RETRIES_KEY无效只是针对方法
+  6.2.2）<dubbo:service cluster="failsafe" />或者<dubbo:reference cluster="failsafe" />：
+         RegistryProtocol.doRefer中调用cluster.join，cluster会根据directory.getUrl中参数选择不同的ClusterInvoker
+         而RegistryDirectory.getUrl返回的是其内部的overrideDirectoryUrl最初创建是由consumer配置创建的，经过config目录覆盖，并在mergeUrl方法中加入provider的配置
+         所以ClusterInvoker经过了三方的配置
+
+6.3）loadbalnce
+  <dubbo:service interface="..." loadbalance="roundrobin" />或<dubbo:reference interface="..." loadbalance="roundrobin" />
+  AbstractInvoker.invoke中ExtensionLoader.getExtensionLoader(LoadBalance.class)根据invokers中的url选择loadbalance,invokers中的invoker是InvokerDelegate类型的
+  属于clusterInvoker下层的invoker，由RegistryDirectory内部创建，toInvokers创建InvokerDelegate会传入consumer provider config合并过的url，该url的loadbalance参数用来选择负载均衡策略
+
+6.4）io线程模型
+    <dubbo:protocol name="dubbo" dispatcher="all" threadpool="fixed" threads="100" />
+    1）Dispatcher（AllChannelHandler、ConnectionOrderedDispatcher、DirectDispatcher、ExecutionDispatcher、MessageOnlyDispatcher）每个Dispatcher都是一个工厂，他们用来创建对应的
+       ChannelHandler如(AllChannelHandler、ConnectionOrderedChannelHandler等等)
+      流程：NettyServer(client端同理)构造函数调用ChannelHandlers.wrap包装handler，内部调用ChannelHandlers.wrapInternal，该方法
+      会根据url中的参数选择Dispatcher，然后创建对应的Handler，决定怎样进行异步处理
+	    看代码貌似心跳并不发往Dispatcher创建的Handler，在之前的HeartbeatHandler被拦截了，与文档说明不一致
+	  2）ThreadPool：AllChannelHandler、ConnectionOrderedChannelHandler等等handler涉及到的异步线程池处理，所以他们又继承自WrappedChannelHandler
+	    该类构造函数会根据url创建对应的线程池
+
+6.5）直连提供者
+   <dubbo:reference id="xxxService" interface="com.alibaba.xxx.XxxService" url="dubbo://localhost:20890"/>
+   java -Dcom.alibaba.xxx.XxxService=dubbo://localhost:20890
+   java -Ddubbo.resolve.file=xxx.properties（文件内容：com.alibaba.xxx.XxxService=dubbo://localhost:20890）
+   代码：ReferenceConfig.url属性，标识点对点直连提供者
+
+6.6）只订阅，不注册，即只订阅其它服务，不暴露本身服务，防止测试正在测自己的环境
+   <dubbo:registry address="10.20.153.10:9090" register="false" />
+   代码：RegistryProtocol.export方法代码：boolean register = registeredProviderUrl.getParameter("register", true);
+   注册的时候会判断是否需要注册，该参数不影响订阅
+
+6.7）只注册，不订阅
+   如果有两个镜像环境，两个注册中心，有一个服务A只在其中一个注册中心C1有部署，另一个注册中心C2还没来得及部署，
+   而两个注册中心的其它应用都需要依赖服务A。这个时候，如果B服务以来A服务，可选择只订阅C1注册中心，而不订阅C2注册中心
+   禁用订阅配置
+     <dubbo:registry id="hzRegistry" address="10.20.153.10:9090" />
+     <dubbo:registry id="qdRegistry" address="10.20.141.150:9090" subscribe="false" />
+  AbstractInterfaceConfig.loadRegistries中会有判断SUBSCRIBE_KEY
+     
+6.8）静态服务：有时候希望人工管理服务提供者的上线和下线，此时需将注册中心标识为非动态管理模式。
+    <dubbo:registry address="10.20.141.150:9090" dynamic="false" />
+    服务提供者初次注册时为禁用状态，需人工启用。断线时，将不会被自动删除，需人工禁用。
+    如果是一个第三方服务提供者，比如 memcached，可以直接向注册中心写入提供者地址信息，消费者正常使用
+    ZookeeperRegistry.doRegister会判断dynamic以决定创建临时节点还是永久节点
+
+6.9）Dubbo 允许配置多协议，在不同服务上支持不同协议或者同一服务上同时支持多种协议。    
+    <dubbo:protocol name="dubbo" port="20880" />
+    <dubbo:protocol name="hessian" port="8080" />
+    <!-- 使用多个协议暴露服务 -->
+    <dubbo:service id="helloService" interface="com.alibaba.hello.api.HelloService" version="1.0.0" protocol="dubbo" />
+    ServiceBean.afterPropertiesSet方法刚刚被调用时候ServiceBean的protocols属性只放置了<dubbo:protocol name="dubbo" port="20880" 
+    也就是说在这之前就已经完成了<dubbo:protocol>的解析，和 <dubbo:service protocol="dubbo" />的过滤
+    
+6.10）多注注册中心 
+    1）Dubbo支持同一服务向多注册中心同时注册，或者不同服务分别注册到不同的注册中心上去，
+	    <dubbo:registry id="hangzhouRegistry" address="10.20.141.150:9090" />
+	    <dubbo:registry id="qingdaoRegistry" address="10.20.141.151:9010" default="false" />
+	    <!-- 向多个注册中心注册 -->
+	    <dubbo:service interface="com.alibaba.hello.api.HelloService" version="1.0.0" ref="helloService" registry="hangzhouRegistry" />
+      ServiceBean.afterPropertiesSet方法刚刚被调用时候ServiceBean的registries属性只放置了<dubbo:registry id="hangzhouRegistry" 
+      也就是说在这之前就已经完成了<dubbo:registry>的解析，和 <dubbo:service registry="hangzhouRegistry" />的过滤
+      
+    2）甚至可以同时引用注册在不同注册中心上的同名服务。
+	    <dubbo:registry id="chinaRegistry" address="10.20.141.150:9090" />
+	    <dubbo:registry id="intlRegistry" address="10.20.154.177:9010" default="false" />
+	    <!-- 引用中文站服务 -->
+	    <dubbo:reference id="chinaHelloService" interface="com.alibaba.hello.api.HelloService" version="1.0.0" registry="chinaRegistry" />
+	    <!-- 引用国际站站服务 -->
+	    <dubbo:reference id="intlHelloService" interface="com.alibaba.hello.api.HelloService" version="1.0.0" registry="intlRegistry" />
+
+6.11）服务分组
+     当一个接口有多种实现时，可以用 group 区分
+     provider：
+        <dubbo:service group="feedback" interface="com.xxx.IndexService" />
+        <dubbo:service group="member" interface="com.xxx.IndexService" />
+     consumer：
+        <dubbo:reference id="feedbackIndexService" group="feedback" interface="com.xxx.IndexService" />
+        <dubbo:reference id="memberIndexService" group="member" interface="com.xxx.IndexService" />
+        <dubbo:reference id="memberIndexService" group="*" interface="com.xxx.IndexService" />
+    代码：1）consumer调用ZookeeperRegistry.doSubscribe订阅provider的zk通知：通知过来后调用ZookeeperRegistry.toUrlsWithEmpty调用UrlUtils.isMatch，该方法内部会根据group和consumer匹配的provider
+    之后，调用ZookeeperRegistry.notify（过滤后的urls）
+    2）consumer端RegistryDirectory.multiGroup参数判断是否是多group，如果是多group会将provider的多个group合并到同一个map的value中（value为list）
+
+6.12）多版本
+		当一个接口实现，出现不兼容升级时，可以用版本号过渡，版本号不同的服务相互间不引用。
+		可以按照以下的步骤进行版本迁移：在低压力时间段，先升级一半提供者为新版本，再将所有消费者升级为新版本，然后将剩下的一半提供者升级为新版本
+		老版本服务提供者配置：
+		<dubbo:service interface="com.foo.BarService" version="1.0.0" />
+		新版本服务提供者配置：
+		<dubbo:service interface="com.foo.BarService" version="2.0.0" />
+		老版本服务消费者配置：
+		<dubbo:reference id="barService" interface="com.foo.BarService" version="1.0.0" />
+		新版本服务消费者配置：
+		<dubbo:reference id="barService" interface="com.foo.BarService" version="2.0.0" />
+		如果不需要区分版本，可以按照以下的方式配置 [1]：
+		<dubbo:reference id="barService" interface="com.foo.BarService" version="*" />
+		代码：同6.11）consuemr从zk订阅provider的变化，provider的url会与consumer进行匹配：UrlUtils.isMatch，版本不同的无法引用
+
+6.13）按组合并返回结果，比如菜单服务，接口一样，但有多种实现，用group区分，现在消费方需从每种group中调用一次返回结果，合并结果返回，这样就可以实现聚合菜单项。
+      1 <dubbo:reference interface="com.xxx.MenuService" group="*" merger="true" />//或者指定分组group="aaa,bbb"
+
+			2指定方法合并结果，其它未指定的方法，将只调用一个 Group
+			<dubbo:reference interface="com.xxx.MenuService" group="*">
+			    <dubbo:method name="getMenuItems" merger="true" />
+			</dubbo:reference>
+
+			3指定合并策略，缺省根据返回值类型自动匹配
+			<dubbo:reference interface="com.xxx.MenuService" group="*">
+			    <dubbo:method name="getMenuItems" merger="mymerge" />
+			</dubbo:reference>
+
+			4指定合并方法，将调用返回结果的指定方法进行合并，合并方法的参数类型必须是返回结果类型本身
+			<dubbo:reference interface="com.xxx.MenuService" group="*">
+			    <dubbo:method name="getMenuItems" merger=".addAll" />
+			</dubbo:reference>
+			
+			5代码：源码角度理解：mergre=true代表会调用所有已知的provider，然后将所有provider返回结果合并成为一个最终结果
+			MergeableClusterInvoker专门处理本功能
+			spi机制创建RegistryProtocol的时候，依赖注入了Cluster（Cluster$Adptive），RegistryProtocol负责通过Cluster创建ClusterInvoker，
+			Cluster$Adptive.join会从传参 参数的getUrl()中 getParam('cluster'（接口名小写）,default)获取对应的Invoker
+
+6.14）参数验证
+      简单看了一下ValidationFilter结合适用看代码很简单
+
+6.15）缓存结果 
+		缓存类型
+		  lru 基于最近最少使用原则删除多余缓存，保持最热的数据被缓存。
+		  threadlocal 当前线程缓存，如一个页面渲染，用到很多 portal，每个 portal 都要去查用户信息，通过线程缓存，可以减少这种多余访问。
+		jcache 与 JSR107 集成，可以桥接各种缓存实现。
+		配置：<dubbo:reference interface="com.foo.BarService" cache="lru" />//或者其子节点<dubbo:method name="findBar" cache="lru" />
+		代码：CacheFilter

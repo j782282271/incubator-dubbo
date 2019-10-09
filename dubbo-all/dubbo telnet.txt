@@ -1,0 +1,12 @@
+telnet 10.10.5.240 20890
+invoke com.tiangou.im.api.SellerUserManagerApi.updateImState({"id":183212, "state":1})
+
+invoke com.tiangou.im.api.SendMessageApi.sendPaySuccessMessage(1,"2",null,false)
+
+invoke com.alibaba.dubbo.demo.DemoService.sayHello("world")
+
+invoke com.tgou.phone.dubbo.TgVirtualPhoneDubboApi.bind()
+
+telnet 172.18.0.61 20886
+invoke com.tiangou.member.dubbo.MemberDubboApi.queryByPhones(["13352233317"])
+invoke com.tiangou.member.dubbo.MemberDubboApi.queryByPhones(["13992119673"])
