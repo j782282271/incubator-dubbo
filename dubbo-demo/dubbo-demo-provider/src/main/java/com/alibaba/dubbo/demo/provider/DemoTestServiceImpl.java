@@ -8,7 +8,7 @@ import com.alibaba.dubbo.demo.ValBean;
  */
 public class DemoTestServiceImpl implements DemoTestService {
     @Override
-    public void speak(ValBean valBean) {
-
+    public String speak(ValBean valBean) {
+        return "你好";
     }
 }

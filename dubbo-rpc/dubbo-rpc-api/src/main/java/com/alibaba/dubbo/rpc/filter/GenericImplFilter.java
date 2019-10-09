@@ -25,13 +25,7 @@ import com.alibaba.dubbo.common.logger.Logger;
 import com.alibaba.dubbo.common.logger.LoggerFactory;
 import com.alibaba.dubbo.common.utils.PojoUtils;
 import com.alibaba.dubbo.common.utils.ReflectUtils;
-import com.alibaba.dubbo.rpc.Filter;
-import com.alibaba.dubbo.rpc.Invocation;
-import com.alibaba.dubbo.rpc.Invoker;
-import com.alibaba.dubbo.rpc.Result;
-import com.alibaba.dubbo.rpc.RpcException;
-import com.alibaba.dubbo.rpc.RpcInvocation;
-import com.alibaba.dubbo.rpc.RpcResult;
+import com.alibaba.dubbo.rpc.*;
 import com.alibaba.dubbo.rpc.service.GenericException;
 import com.alibaba.dubbo.rpc.support.ProtocolUtils;
 
@@ -41,6 +35,7 @@ import java.lang.reflect.Method;
 
 /**
  * GenericImplInvokerFilter
+ * for consumer
  */
 @Activate(group = Constants.CONSUMER, value = Constants.GENERIC_KEY, order = 20000)
 public class GenericImplFilter implements Filter {
@@ -55,12 +50,14 @@ public class GenericImplFilter implements Filter {
         if (ProtocolUtils.isGeneric(generic)
                 && !Constants.$INVOKE.equals(invocation.getMethodName())
                 && invocation instanceof RpcInvocation) {
+            //如果调用的方法不是$invoke方法，而是sayHello(或者其他方法),则将方法名变为$invoke，将第一个参数变为sayHello
+            //并且将参数由bean转换为map
             RpcInvocation invocation2 = (RpcInvocation) invocation;
-            String methodName = invocation2.getMethodName();
-            Class<?>[] parameterTypes = invocation2.getParameterTypes();
-            Object[] arguments = invocation2.getArguments();
+            String methodName = invocation2.getMethodName();//非$invoke的方法名
+            Class<?>[] parameterTypes = invocation2.getParameterTypes();//[String,String[],Object[]]
+            Object[] arguments = invocation2.getArguments();//[sayHello [String] [Object"world"] ]
 
-            String[] types = new String[parameterTypes.length];
+            String[] types = new String[parameterTypes.length];//[String,String[],Object[]]
             for (int i = 0; i < parameterTypes.length; i++) {
                 types[i] = ReflectUtils.getName(parameterTypes[i]);
             }
@@ -72,6 +69,7 @@ public class GenericImplFilter implements Filter {
                     args[i] = JavaBeanSerializeUtil.serialize(arguments[i], JavaBeanAccessor.METHOD);
                 }
             } else {
+                //将参数中的bean转换为map
                 args = PojoUtils.generalize(arguments);
             }
 

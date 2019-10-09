@@ -116,7 +116,7 @@ public class HeaderExchangeServer implements ExchangeServer {
                 //要close，通知channel，只读事件
                 sendChannelReadOnlyEvent();
             }
-            //停10mill second在真正地停止服务
+            //如果存在channel没关闭且没达到超时间，则等待到超时时间
             while (HeaderExchangeServer.this.isRunning()
                     && System.currentTimeMillis() - start < max) {
                 try {

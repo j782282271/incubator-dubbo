@@ -144,6 +144,7 @@ final class HeaderExchangeChannel implements ExchangeChannel {
         closed = true;
         if (timeout > 0) {
             long start = System.currentTimeMillis();
+            //当该channel仍活跃，即有请求未返回，则等待其返回，然后关闭，或者超时强制关闭
             while (DefaultFuture.hasFuture(channel)
                     && System.currentTimeMillis() - start < timeout) {
                 try {
