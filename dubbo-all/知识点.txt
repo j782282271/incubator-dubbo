@@ -1,0 +1,4 @@
+1）如何保证同步调用？rocketmq是通过furture
+2）本地存根本地伪装
+3）Activate与Adaptive
+

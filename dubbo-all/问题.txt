@@ -1,1 +1,0 @@
-如何保证同步调用rocketmq是通过furture

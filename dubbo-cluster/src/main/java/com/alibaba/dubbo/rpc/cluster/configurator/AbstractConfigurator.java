@@ -49,9 +49,9 @@ public abstract class AbstractConfigurator implements Configurator {
      * 1）configuratorUrl为config目录下的配置的url：
      * 如：dubbo-all文件夹下该文件内容：dubbo admin操作.txt
      * 2）参数url:
-     * for provider；originInvoker.url（含side=provider），即provider初始创建的url（每次都是），见：RegistryProtocol.notify方法
+     * for provider：originInvoker.url（含side=provider），即provider初始创建的url（每次都是），见：RegistryProtocol.notify方法
      * for consumer：RegistryDirectory.directoryUrl（ip port为zk的，interface为com.alibaba.dubbo.registry.RegistryService）
-     * **************见RegistryDirectory.notify方法
+     * 见RegistryDirectory.notify方法
      */
     @Override
     public URL configure(URL url) {
@@ -88,6 +88,9 @@ public abstract class AbstractConfigurator implements Configurator {
         return url;
     }
 
+    /**
+     * 如果能匹配上则配置url
+     */
     private URL configureIfMatch(String host, URL url) {
         if (Constants.ANYHOST_VALUE.equals(configuratorUrl.getHost()) || host.equals(configuratorUrl.getHost())) {
             String configApplication = configuratorUrl.getParameter(Constants.APPLICATION_KEY, configuratorUrl.getUsername());

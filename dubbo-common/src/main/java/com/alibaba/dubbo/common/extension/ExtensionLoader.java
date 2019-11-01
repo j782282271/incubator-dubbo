@@ -70,6 +70,7 @@ public class ExtensionLoader<T> {
     //父接口class
     private final Class<?> type;
 
+    //默认AdaptiveExtensionFactory实现类
     private final ExtensionFactory objectFactory;
 
     //子类class到名的映射与文件中正好相反
@@ -82,9 +83,9 @@ public class ExtensionLoader<T> {
     private final Map<String, Activate> cachedActivates = new ConcurrentHashMap<String, Activate>();
     //使用过的instance
     private final ConcurrentMap<String, Holder<Object>> cachedInstances = new ConcurrentHashMap<String, Holder<Object>>();
-    //最后一个带有Adaptive的实现的类的实例缓存在这里
+    //带有Adaptive的实现的类的实例缓存在这里
     private final Holder<Object> cachedAdaptiveInstance = new Holder<Object>();
-    //最后一个带有Adaptive的实现的类的class缓存在这里
+    //有Adaptive的实现的类的class缓存在这里，多个会报错
     private volatile Class<?> cachedAdaptiveClass = null;
     //接口注解SPI 的value值
     private String cachedDefaultName;
@@ -183,12 +184,12 @@ public class ExtensionLoader<T> {
      * @param group  group  用于过滤Activate注解中的group
      * @return extension list which are activated
      * @see com.alibaba.dubbo.common.extension.Activate
-     *
+     * <p>
      * 1.根据loader.getActivateExtension中的group和搜索到此类型的实例进行比较，如果group能匹配到，就是我们选择的，也就是在此条件下需要激活的。
      * 2.@Activate中的value是参数是第二层过滤参数（第一层是通过group），在group校验通过的前提下，如果URL中的参数（k）与值（v）中的参数名同@Activate中的value值一致或者包含，那么才会被选中。相当于加入了value后，条件更为苛刻点，需要URL中有此参数并且，参数必须有值。
      * 3.@Activate的order参数对于同一个类型的多个扩展来说，order值越小，优先级越高。
      */
-    public List<T> getActivateExtension(URL url, String[] values, String group) {
+        public List<T> getActivateExtension(URL url, String[] values, String group) {
         List<T> exts = new ArrayList<T>();
 //        将传递过来的values包装成List类型的names
         List<String> names = values == null ? new ArrayList<String>(0) : Arrays.asList(values);
@@ -252,7 +253,7 @@ public class ExtensionLoader<T> {
 
     /**
      * 判断url中的params(key，value)是否包含activate注解中的value
-     * */
+     */
     private boolean isActive(Activate activate, URL url) {
         String[] keys = activate.value();
         if (keys.length == 0) {
@@ -683,11 +684,16 @@ public class ExtensionLoader<T> {
     }
 
     /**
-     * 1带有Adaptive的最后一个子类class存入cachedAdaptiveClass属性
+     * 1带有Adaptive的子类class存入cachedAdaptiveClass属性，有多个报错
      * 2wrapper子类放入cachedWrapperClasses
      * 3有name,有Activate注解的放入cachedActivates中
      * 4有name,class->name存入cachedNames
      * 5有name,name->class存入extensionClasses这个参数中
+     *
+     * @param extensionClasses 存放解析结果
+     * @param resourceURL      子类实现文件地址
+     * @param clazz            子类
+     * @param name             配置文件中的key
      */
     private void loadClass(Map<String, Class<?>> extensionClasses, java.net.URL resourceURL, Class<?> clazz, String name) throws NoSuchMethodException {
         if (!type.isAssignableFrom(clazz)) {
@@ -800,16 +806,16 @@ public class ExtensionLoader<T> {
     }
 
     /**
-     *  1. 获取某个SPI接口的adaptive实现类的规则是：
-     *     （1）实现类的类上面有Adaptive注解的，那么这个类就是adaptive类，只能有一个否则会报错在loadclass方法中报错
-     *     （2）实现类的类上面没有Adaptive注解，但是在方法上有Adaptive注解，则会动态生成adaptive类
-     *  2 .生成的动态类的编译类是：com.alibaba.dubbo.common.compiler.support.AdaptiveCompiler类
-     *  3. 动态类的本质是可以做到一个SPI中的不同的Adaptive参数可以去调不同的SPI实现类去处理。使得程序的灵活性大大提高。这才是整套SPI设计的一个精华之所在
-     *   wiki：https://www.jianshu.com/p/dc616814ce98
-     *   1. 在子类方法上加上@Adaptive注解的类，是最为明确的创建对应类型Adaptive类。所以他优先级最高，有多个则报错，体现在loadClass方法中
-     *   2. 本方法中：@SPI注解中的value是默认值，如果通过URL获取不到关于取哪个类作为Adaptive类的话，就使用这个默认值，当然如果URL中可以获取到，就用URL中的。
-     *   3. 本方法中：可以在方法上增加@Adaptive注解，注解中的value与链接中的参数的key一致，链接中的key对应的value就是spi中的name,获取相应的实现类。
-     *  */
+     * 1. 获取某个SPI接口的adaptive实现类的规则是：
+     * （1）实现类的类上面有Adaptive注解的，那么这个类就是adaptive类，只能有一个否则会报错在loadclass方法中报错
+     * （2）实现类的类上面没有Adaptive注解，但是在方法上有Adaptive注解，则会动态生成adaptive类
+     * 2 .生成的动态类的编译类是：com.alibaba.dubbo.common.compiler.support.AdaptiveCompiler类
+     * 3. 动态类的本质是可以做到一个SPI中的不同的Adaptive参数可以去调不同的SPI实现类去处理。使得程序的灵活性大大提高。这才是整套SPI设计的一个精华之所在
+     * wiki：https://www.jianshu.com/p/dc616814ce98
+     * 1. 在子类方法上加上@Adaptive注解的类，是最为明确的创建对应类型Adaptive类。所以他优先级最高，有多个则报错，体现在loadClass方法中
+     * 2. 本方法中：@SPI注解中的value是默认值，如果通过URL获取不到关于取哪个类作为Adaptive类的话，就使用这个默认值，当然如果URL中可以获取到，就用URL中的。
+     * 3. 本方法中：可以在方法上增加@Adaptive注解，注解中的value与链接中的参数的key一致，链接中的key对应的value就是spi中的name,获取相应的实现类。
+     */
     private String createAdaptiveExtensionClassCode() {
         StringBuilder codeBuilder = new StringBuilder();
         //获取接口的所有方法
