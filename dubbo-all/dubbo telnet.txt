@@ -10,3 +10,7 @@ invoke com.tgou.phone.dubbo.TgVirtualPhoneDubboApi.bind()
 telnet 172.18.0.61 20886
 invoke com.tiangou.member.dubbo.MemberDubboApi.queryByPhones(["13352233317"])
 invoke com.tiangou.member.dubbo.MemberDubboApi.queryByPhones(["13992119673"])
+
+
+
+invoke com.tiangou.push.dubbo.KongdaoTaskDubboApi.checkEnabled(1)

@@ -77,11 +77,10 @@ public class DubboCodec extends ExchangeCodec implements Codec2 {
                 proto = (byte) (flag & SERIALIZATION_MASK);
         // get request id.
         long id = Bytes.bytes2long(header, 4);
-        //非request,consumer请求provider后收到provider的Response，
-        //创建Response从header中找到id，根据id找到对应的请求Invocation
-        //创建DecodeableRpcResult并用它做真正的decode得到返回值，将它放到Response中result字段
         if ((flag & FLAG_REQUEST) == 0) {
-            // decode response.
+            //非request,consumer请求provider后收到provider的Response，
+            //创建Response从header中找到id，根据id找到对应的请求Invocation
+            //创建DecodeableRpcResult并用它做真正的decode得到返回值，将它放到Response中result字段
             Response res = new Response(id);
             if ((flag & FLAG_EVENT) != 0) {
                 res.setEvent(Response.HEARTBEAT_EVENT);
