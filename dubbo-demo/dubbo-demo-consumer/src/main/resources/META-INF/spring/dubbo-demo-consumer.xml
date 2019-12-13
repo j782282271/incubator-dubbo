@@ -33,4 +33,5 @@
     local regular interface -->
     <dubbo:reference id="demoService" check="false" interface="com.alibaba.dubbo.demo.DemoService"/>
 
+    <dubbo:reference id="demoTestService" check="false" interface="com.alibaba.dubbo.demo.DemoTestService" validation="true"/>
 </beans>

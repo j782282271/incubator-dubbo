@@ -1,0 +1,13 @@
+1）
+provider 抛出JDK中不受检查异常，如： throw new NullPointerException();
+因为该异常在jdk中，所以consumer中可以反序列化该异常（DecodeableRpcResult.decode中解析该异常）
+则consumer在RpcResult.recreate方法中发现返回了异常，立即抛出该不受检查异常
+
+
+2）
+provider 抛出自己项目定义的（consumer没有该类）异常（可以是受检查也可以是不受检查异常），如： throw new MyException();
+consumer中反序列化该异常，DecodeableRpcResult.decode中可以解析该异常，将该异常解析为其父类的异常
+则consumer在RpcResult.recreate方法中发现返回了异常，立即抛出该受检查异常，形式如下：
+com.tgou.base.api.provider.MyException: 'provider中异常msg' from RuntimeException
+
+以上总结：dubbo会将provider中自定义(consumer端没有的)异常解析为其父类jdk的异常以抛出
